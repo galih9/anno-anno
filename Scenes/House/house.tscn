@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://c1e25dmtk26yi"]
+
+[ext_resource type="Texture2D" uid="uid://dfoigkwiyy7ss" path="res://Assets/house_sprite.png" id="1_hfkix"]
+
+[node name="House" type="Node2D" unique_id=1371187133]
+y_sort_enabled = true
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1396011512]
+position = Vector2(0, -8)
+texture = ExtResource("1_hfkix")
