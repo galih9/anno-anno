@@ -1,0 +1,42 @@
+[gd_resource type="TileSet" format=3 uid="uid://be6uh335fxlty"]
+
+[ext_resource type="Texture2D" uid="uid://cxcdna6cdk3go" path="res://Assets/16x32_sprite.png" id="1_uau65"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_0xm2m"]
+texture = ExtResource("1_uau65")
+texture_region_size = Vector2i(32, 16)
+0:0/0 = 0
+0:1/0 = 0
+0:2/0 = 0
+0:2/0/terrain_set = 0
+0:2/0/terrain = 1
+0:2/0/terrains_peering_bit/right_corner = 1
+0:2/0/terrains_peering_bit/bottom_right_side = 1
+0:2/0/terrains_peering_bit/bottom_corner = 1
+0:2/0/terrains_peering_bit/bottom_left_side = 1
+0:2/0/terrains_peering_bit/left_corner = 1
+0:2/0/terrains_peering_bit/top_left_side = 1
+0:2/0/terrains_peering_bit/top_corner = 1
+0:2/0/terrains_peering_bit/top_right_side = 1
+0:3/0 = 0
+0:3/0/terrain_set = 0
+0:3/0/terrain = 0
+0:3/0/terrains_peering_bit/right_corner = 0
+0:3/0/terrains_peering_bit/bottom_right_side = 0
+0:3/0/terrains_peering_bit/bottom_corner = 0
+0:3/0/terrains_peering_bit/bottom_left_side = 0
+0:3/0/terrains_peering_bit/left_corner = 0
+0:3/0/terrains_peering_bit/top_left_side = 0
+0:3/0/terrains_peering_bit/top_corner = 0
+0:3/0/terrains_peering_bit/top_right_side = 0
+
+[resource]
+tile_shape = 1
+tile_layout = 5
+tile_size = Vector2i(32, 16)
+terrain_set_0/mode = 0
+terrain_set_0/terrain_0/name = "Land"
+terrain_set_0/terrain_0/color = Color(0.5019608, 0.92156863, 0.2509804, 1)
+terrain_set_0/terrain_1/name = "Sea"
+terrain_set_0/terrain_1/color = Color(0.047058824, 0.50980395, 0.8784314, 1)
+sources/0 = SubResource("TileSetAtlasSource_0xm2m")

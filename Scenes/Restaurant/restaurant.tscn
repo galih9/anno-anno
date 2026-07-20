@@ -1,9 +1,34 @@
 [gd_scene format=3 uid="uid://cicw40jx5xwbx"]
 
 [ext_resource type="Texture2D" uid="uid://n7j3ma2cjlfv" path="res://Assets/restaurant.png" id="1_ahc38"]
+[ext_resource type="Script" uid="uid://bv2rxqy8trp8g" path="res://Scenes/Restaurant/restaurant.gd" id="1_qesjh"]
+[ext_resource type="FontFile" uid="uid://m31iuv6hppn1" path="res://Assets/Silkscreen-Regular.ttf" id="2_nkuot"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_qesjh"]
+line_spacing = 1.0
+font = ExtResource("2_nkuot")
+font_size = 4
 
 [node name="Restaurant" type="Node2D" unique_id=748363556]
+script = ExtResource("1_qesjh")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=279195664]
 position = Vector2(8, -12)
 texture = ExtResource("1_ahc38")
+
+[node name="Container" type="Control" parent="." unique_id=170542047]
+z_index = 10
+layout_mode = 3
+anchors_preset = 0
+offset_left = -21.0
+offset_top = -13.0
+offset_right = 40.0
+offset_bottom = 8.0
+
+[node name="Label" type="Label" parent="Container" unique_id=35965950]
+layout_mode = 0
+offset_right = 61.0
+offset_bottom = 21.0
+text = "Status: Disconnected
+Desc: no path"
+label_settings = SubResource("LabelSettings_qesjh")

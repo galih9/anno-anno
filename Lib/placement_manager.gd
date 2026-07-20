@@ -246,6 +246,7 @@ func _try_place_building() -> void:
 		occupied[tile] = building
 
 	print("PlacementManager ▸ placed %s at %s  footprint: %s" % [BuildingType.keys()[_current_type - 1], _hovered_cell, footprint])
+	update_connections()
 
 
 func _get_scene_for_type(type: BuildingType) -> PackedScene:
@@ -278,6 +279,12 @@ func _is_footprint_clear(footprint: Array[Vector2i]) -> bool:
 	for tile in footprint:
 		if occupied.has(tile):
 			return false
+			
+		var tile_data: TileData = _land_layer.get_cell_tile_data(tile)
+		# 0 is the ID for "Land" terrain in terrain_set 0
+		if tile_data == null or tile_data.terrain != 0:
+			return false
+			
 	return true
 
 
@@ -318,9 +325,72 @@ func remove_building(building: Node2D) -> void:
 		occupied.erase(tile)
 	building.queue_free()
 	print("PlacementManager ▸ removed building, freed %d tiles." % keys.size())
+	update_connections()
 
 func is_tile_occupied(cell: Vector2i) -> bool:
 	return occupied.has(cell)
 
 func get_building_at(cell: Vector2i) -> Node2D:
 	return occupied.get(cell, null) as Node2D
+
+func update_connections() -> void:
+	var all_buildings = []
+	for node in occupied.values():
+		if not node in all_buildings:
+			all_buildings.append(node)
+			
+	var houses = []
+	for b in all_buildings:
+		if b.scene_file_path.get_file() == "house.tscn":
+			houses.append(b)
+			
+	for house in houses:
+		var status = _check_house_connection(house)
+		if house.has_method("set_status"):
+			house.set_status(status.status, status.desc)
+
+func _check_house_connection(house: Node2D) -> Dictionary:
+	var house_tiles = []
+	for tile in occupied.keys():
+		if occupied[tile] == house:
+			house_tiles.append(tile)
+			
+	var adjacent_paths = []
+	for tile in house_tiles:
+		for offset in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+			var neighbor_tile = tile + offset
+			if occupied.has(neighbor_tile):
+				var neighbor = occupied[neighbor_tile]
+				if neighbor != house and neighbor.scene_file_path.get_file() == "path.tscn":
+					if not neighbor in adjacent_paths:
+						adjacent_paths.append(neighbor)
+						
+	if adjacent_paths.is_empty():
+		return {"status": "Disconnected", "desc": "no path"}
+		
+	var visited = []
+	var queue = []
+	queue.append_array(adjacent_paths)
+	for p in adjacent_paths:
+		visited.append(p)
+		
+	while not queue.is_empty():
+		var current_path = queue.pop_front()
+		
+		var path_tiles = []
+		for tile in occupied.keys():
+			if occupied[tile] == current_path:
+				path_tiles.append(tile)
+				
+		for tile in path_tiles:
+			for offset in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
+				var neighbor_tile = tile + offset
+				if occupied.has(neighbor_tile):
+					var neighbor = occupied[neighbor_tile]
+					if neighbor.scene_file_path.get_file() == "restaurant.tscn":
+						return {"status": "Connected", "desc": "activated"}
+					elif neighbor.scene_file_path.get_file() == "path.tscn" and not neighbor in visited:
+						visited.append(neighbor)
+						queue.append(neighbor)
+						
+	return {"status": "Disconnected", "desc": "pathway not connected to restaurant"}
