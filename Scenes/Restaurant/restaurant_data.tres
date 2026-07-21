@@ -8,6 +8,7 @@
 script = ExtResource("1_buildingdata")
 id = "restaurant"
 display_name = "Restaurant"
+building_type = 3
 scene = ExtResource("2_utu5h")
 preview_texture = ExtResource("2_restaurant")
 sprite_offset = Vector2(8, -12)

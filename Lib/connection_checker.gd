@@ -3,13 +3,11 @@
 #
 # Single responsibility: BFS graph traversal to determine whether buildings
 # that need a connection (e.g. Houses) are reachable through connector
-# tiles (e.g. Paths) to a destination (e.g. Restaurant).
+# tiles (e.g. Paths) to a destination (e.g. Restaurant); and cosmetic
+# effect propagation (bench happiness radius).
 #
 # All game logic lives here.  This file has zero input, zero UI, and zero
 # knowledge of scene trees beyond what BuildingRegistry provides.
-#
-# To change connection rules (e.g. a market instead of a restaurant, or
-# multi-hop requirements), only edit this file.
 
 class_name ConnectionChecker
 extends Node
@@ -37,11 +35,7 @@ const DIAGONAL: Array[Vector2i] = [
 	Vector2i(-1, -1),
 ]
 
-# ─── Public API ───────────────────────────────────────────────────────────────
-
-## Re-evaluate and update every building that [needs_connection].
-## Call this after any placement or removal.
-# ─── Data accessor ───────────────────────────────────────────────────────────
+# ─── Data accessor ────────────────────────────────────────────────────────────
 
 ## Reads BuildingData from a node regardless of whether it has a script.
 ## PlacementManager stores it in node metadata; scripted buildings also expose
@@ -59,11 +53,15 @@ func _get_data(node: Node2D) -> BuildingData:
 
 # ─── Public API ───────────────────────────────────────────────────────────────
 
+## Re-evaluate and update every building that [needs_connection],
+## then propagate cosmetic effects (bench happiness).
+## Call this after any placement or removal.
 func update_all_connections() -> void:
 	if registry == null:
 		push_error("ConnectionChecker: registry is not assigned.")
 		return
 
+	# ── Step 1: path-based connection check ──────────────────────────────────
 	for building in registry.get_buildings_with_flag(&"needs_connection"):
 		var data := _get_data(building)
 		var result: Dictionary
@@ -74,6 +72,9 @@ func update_all_connections() -> void:
 			result = check_building_connection(building)
 		if building.has_method("set_status"):
 			building.set_status(result.status, result.desc)
+
+	# ── Step 2: cosmetic effect pass (bench happiness radius) ─────────────────
+	update_cosmetic_effects()
 
 
 ## Run a BFS from [param building]'s adjacent connectors and report whether
@@ -126,6 +127,55 @@ func check_building_connection(building: Node2D) -> Dictionary:
 
 	return { "status": "Disconnected", "desc": "path not connected to destination" }
 
+# ─── Cosmetic effect propagation ──────────────────────────────────────────────
+
+## Re-apply all cosmetic building effects (e.g. bench happiness bonus).
+##
+## Flow:
+##   1. Reset every resident building's bench bonus to 0.
+##   2. For each cosmetic building with influence_radius > 0,
+##      find all resident buildings within that radius and call apply_happiness_bonus().
+##
+## "Within radius" uses Chebyshev distance (max of |Δx|, |Δy|), covering all
+## 8 directions uniformly and cheaply.
+func update_cosmetic_effects() -> void:
+	# ── Reset all bench bonuses ───────────────────────────────────────────────
+	for building in registry.get_buildings_with_type(BuildingData.BuildingType.RESIDENT):
+		if building.has_method("reset_happiness_bonus"):
+			building.reset_happiness_bonus()
+
+	# ── Apply bonuses from every cosmetic building ───────────────────────────
+	var cosmetic_buildings: Array[Node2D] = registry.get_buildings_with_type(
+		BuildingData.BuildingType.COSMETIC
+	)
+	for cosmetic in cosmetic_buildings:
+		var c_data: BuildingData = _get_data(cosmetic)
+		if c_data == null or c_data.influence_radius <= 0:
+			continue
+
+		var c_cells: Array[Vector2i] = registry.get_cells_of(cosmetic)
+
+		for resident in registry.get_buildings_with_type(BuildingData.BuildingType.RESIDENT):
+			var r_cells: Array[Vector2i] = registry.get_cells_of(resident)
+			if _is_within_radius(c_cells, r_cells, c_data.influence_radius):
+				if resident.has_method("apply_happiness_bonus"):
+					resident.apply_happiness_bonus(0.25)
+
+
+## Returns true if any cell in [param target_cells] is within [param radius]
+## Chebyshev tiles of any cell in [param source_cells].
+func _is_within_radius(
+	source_cells: Array[Vector2i],
+	target_cells: Array[Vector2i],
+	radius: int
+) -> bool:
+	for sc: Vector2i in source_cells:
+		for tc: Vector2i in target_cells:
+			var dist: int = max(abs(tc.x - sc.x), abs(tc.y - sc.y))
+			if dist <= radius:
+				return true
+	return false
+
 # ─── Private helpers ──────────────────────────────────────────────────────────
 
 func _get_adjacent_connectors(
@@ -154,7 +204,7 @@ func _get_adjacent_connectors(
 	return result
 
 
-# ─── Ricefield helpers ───────────────────────────────────────────────────────────────────
+# ─── Ricefield helpers ────────────────────────────────────────────────────────
 
 ## Combined status check for ricefield buildings:
 ##   1. BFS to verify a path-to-Restaurant connection exists.

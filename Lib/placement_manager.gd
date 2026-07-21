@@ -2,11 +2,11 @@
 # Attach to a Node named "PlacementManager" inside Main.tscn.
 #
 # ── Responsibilities ───────────────────────────────────────────────────────────
-#   • Handle keyboard/mouse input for build mode and building selection
+#   • Handle keyboard/mouse input for build mode, building selection, and rotation
 #   • Resolve the LandLayer reference and create the BuildingContainer
 #   • Delegate each concern to its dedicated helper:
 #       BuildingRegistry   → occupied-cell tracking
-#       ConnectionChecker  → BFS path connectivity
+#       ConnectionChecker  → BFS path connectivity + cosmetic effects
 #       PreviewHandler     → ghost sprite
 #
 # ── Setup ──────────────────────────────────────────────────────────────────────
@@ -18,9 +18,12 @@
 #
 # ── Input Map (Project Settings → Input Map) ──────────────────────────────────
 #   toggle_build  → E   : toggle build mode on/off
-#   building_1    → 1   : select buildings[0]
-#   building_2    → 2   : select buildings[1]
-#   building_3    → 3   : select buildings[2]
+#   building_1    → 1   : select buildings[0]  (Path)
+#   building_2    → 2   : select buildings[1]  (House)
+#   building_3    → 3   : select buildings[2]  (Ricefield)
+#   building_4    → 4   : select buildings[3]  (Restaurant)
+#   building_5    → 5   : select buildings[4]  (Bench)
+#   rotate        → R   : cycle rotation variant (for buildings that support it)
 
 extends Node
 
@@ -33,19 +36,40 @@ extends Node
 
 # ─── Child node references ────────────────────────────────────────────────────
 
-@onready var registry: BuildingRegistry       = $BuildingRegistry
+@onready var registry: BuildingRegistry            = $BuildingRegistry
 @onready var connection_checker: ConnectionChecker = $ConnectionChecker
-@onready var preview: PreviewHandler          = $PreviewHandler
+@onready var preview: PreviewHandler               = $PreviewHandler
 
 # ─── Internal state ───────────────────────────────────────────────────────────
 
 var _land_layer: TileMapLayer
 var _building_container: Node2D
 
-var _build_mode: bool         = false
-var _hovered_cell: Vector2i   = Vector2i.ZERO
-var _placement_valid: bool    = false
+var _build_mode: bool       = false
+var _hovered_cell: Vector2i = Vector2i.ZERO
+var _placement_valid: bool  = false
+
+## The root BuildingData selected by the player (from buildings[]).
+## Never changes until the player presses a building_N key.
+var _base_data: BuildingData
+
+## The currently active BuildingData — either _base_data or one of its
+## rotation_variants.  This is what gets previewed and placed.
 var _current_data: BuildingData
+
+## Current rotation variant index.
+## -1 = base orientation (_base_data itself).
+##  0..N-1 = index into _base_data.rotation_variants[].
+var _rotation_index: int = -1
+
+## Input action name → buildings[] index mapping.
+const ACTION_TO_INDEX: Array[String] = [
+	"building_1",  # 0 — Path
+	"building_2",  # 1 — House
+	"building_3",  # 2 — Ricefield
+	"building_4",  # 3 — Restaurant
+	"building_5",  # 4 — Bench
+]
 
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
 
@@ -89,6 +113,7 @@ func _process(_delta: float) -> void:
 	if not _build_mode:
 		return
 
+	_handle_rotation()
 	_update_hover()
 
 
@@ -112,9 +137,6 @@ func _handle_build_toggle() -> void:
 
 
 func _handle_building_selection() -> void:
-	# Map input action names to buildings[] indices.
-	# Extend this array when you add building_5, building_6, etc.
-	const ACTION_TO_INDEX: Array[String] = ["building_1", "building_2", "building_3", "building_4"]
 	for i in ACTION_TO_INDEX.size():
 		if Input.is_action_just_pressed(ACTION_TO_INDEX[i]):
 			_select_building(i)
@@ -125,9 +147,33 @@ func _select_building(index: int) -> void:
 	if index < 0 or index >= buildings.size():
 		push_warning("PlacementManager: No building at index %d." % index)
 		return
-	_current_data = buildings[index]
+	_base_data      = buildings[index]
+	_current_data   = _base_data
+	_rotation_index = -1
 	preview.set_building(_current_data)
+	preview.set_rotation_deg(0.0)
 	print("PlacementManager ▸ selected: %s" % _current_data.display_name)
+
+
+## Cycle to the next rotation variant for the current building.
+## If the building has no rotation_variants, pressing R does nothing.
+##
+## Cycle order: base (-1) → variant[0] → variant[1] → … → base (-1) → …
+func _handle_rotation() -> void:
+	if not Input.is_action_just_pressed("rotate"):
+		return
+	if _base_data == null or not _base_data.can_rotate():
+		return
+	# Shift _rotation_index from [-1..N-1] into [0..N], step, mod back to [0..N],
+	# then shift back to [-1..N-1].
+	var variant_count: int = _base_data.rotation_variants.size()
+	_rotation_index = ((_rotation_index + 1 + 1) % (variant_count + 1)) - 1
+	if _rotation_index < 0:
+		_current_data = _base_data
+	else:
+		_current_data = _base_data.rotation_variants[_rotation_index]
+	preview.set_building(_current_data)
+	print("PlacementManager ▸ rotation variant: %s" % _current_data.display_name)
 
 # ─── Hover / preview update ───────────────────────────────────────────────────
 
@@ -187,7 +233,7 @@ func _try_place_building() -> void:
 ## tiles on every surrounding cell that is empty and on valid Land terrain.
 ## Fields that would overlap an existing building are silently skipped.
 func _try_place_ricefield() -> void:
-	# ── Place main building ───────────────────────────────────────────────────────────────
+	# ── Place main building ───────────────────────────────────────────────────
 	var building: Node2D = _current_data.scene.instantiate() as Node2D
 	if building == null:
 		push_error("PlacementManager: Ricefield scene root must extend Node2D.")
@@ -205,7 +251,7 @@ func _try_place_ricefield() -> void:
 	var main_cells: Array[Vector2i] = [_hovered_cell]
 	registry.register(main_cells, building)
 
-	# ── Stamp surrounding field tiles ───────────────────────────────────────────────────
+	# ── Stamp surrounding field tiles ─────────────────────────────────────────
 	var fields_placed: int = 0
 	if _current_data.field_scene != null:
 		for offset: Vector2i in _current_data.field_footprint_offsets:
@@ -323,5 +369,6 @@ func _print_help() -> void:
 	print("  E   → toggle build mode")
 	for i in buildings.size():
 		print("  %d   → select %s" % [i + 1, buildings[i].display_name])
+	print("  R   → cycle rotation variant (if building supports it)")
 	print("  LMB → place selected building (in build mode)")
 	print("────────────────────────────────")

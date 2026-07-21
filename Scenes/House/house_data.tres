@@ -8,6 +8,7 @@
 script = ExtResource("1_buildingdata")
 id = "house"
 display_name = "House"
+building_type = 1
 scene = ExtResource("2_3oqjo")
 preview_texture = ExtResource("2_house")
 sprite_offset = Vector2(0, -8)

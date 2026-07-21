@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="BuildingData" format=3 uid="uid://cwbench0data2"]
+
+[ext_resource type="Script" uid="uid://qcvlj6htmkm1" path="res://Lib/building_data.gd" id="1_buildingdata"]
+[ext_resource type="PackedScene" uid="uid://b57l1s261svir" path="res://Scenes/Bench/bench.tscn" id="2_bench"]
+[ext_resource type="Texture2D" uid="uid://prct1v142vov" path="res://Assets/bench-v.png" id="3_benchimg_v"]
+
+[resource]
+script = ExtResource("1_buildingdata")
+id = "bench"
+display_name = "Bench (V)"
+building_type = 4
+scene = ExtResource("2_bench")
+preview_texture = ExtResource("3_benchimg_v")
+sprite_offset = Vector2(8, -4)
+footprint_offsets = Array[Vector2i]([Vector2i(0, 0), Vector2i(0, -1)])
+influence_radius = 4

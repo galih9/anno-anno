@@ -8,6 +8,18 @@
 class_name BuildingData
 extends Resource
 
+# ─── Building Types ───────────────────────────────────────────────────────────
+
+## Canonical classification for each building.
+## Used by systems (connection, effects, UI) to apply type-specific behaviour.
+enum BuildingType {
+	CONNECTOR,      # Pathway — links other buildings together
+	RESIDENT,       # House   — has status / happiness / level
+	RESOURCE,       # Ricefield — earns resources when active
+	PUBLIC_SERVICE, # Restaurant — destination / heart of the city
+	COSMETIC,       # Bench   — influence radius, no path required
+}
+
 # ─── Identity ─────────────────────────────────────────────────────────────────
 
 ## Machine-readable key used for matching (e.g. "house", "path", "restaurant").
@@ -16,6 +28,10 @@ extends Resource
 
 ## Human-readable label shown in debug output and future UI.
 @export var display_name: String = ""
+
+## The category this building belongs to.  Drives connection rules, effect
+## propagation, and status logic without hardcoding per-id branches.
+@export var building_type: BuildingType = BuildingType.CONNECTOR
 
 # ─── Scene ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +73,27 @@ extends Resource
 ## Marks this building as a consumer that needs a path connection to a destination.
 @export var needs_connection: bool = false
 
+# ─── Cosmetic / Influence ─────────────────────────────────────────────────────
+
+## Radius (in tiles, Chebyshev distance) within which this building applies
+## its effect to nearby buildings.  Only used when building_type == COSMETIC.
+## 0 means no influence.
+@export var influence_radius: int = 0
+
+# ─── Rotation variants ────────────────────────────────────────────────────────
+
+## Optional list of BuildingData resources representing this building's rotated
+## states in isometric order.  Each entry is a fully independent BuildingData
+## with its own scene, texture, sprite_offset, and footprint_offsets.
+##
+## Pressing the rotate key cycles through this list.  If the list is empty,
+## pressing rotate has no effect (the building has no valid rotation).
+##
+## Convention: index 0 = first rotation variant, etc.
+## The root BuildingData (the one in PlacementManager.buildings[]) is always
+## the default orientation and should NOT appear in this list.
+@export var rotation_variants: Array[BuildingData] = []
+
 # ─── Ricefield ────────────────────────────────────────────────────────────────
 
 ## Marks this building as a ricefield that stamps surrounding field tiles on placement.
@@ -85,3 +122,8 @@ func get_footprint(origin: Vector2i) -> Array[Vector2i]:
 	for offset: Vector2i in footprint_offsets:
 		cells.append(origin + offset)
 	return cells
+
+
+## Returns true if this building supports rotation (i.e. has at least one variant).
+func can_rotate() -> bool:
+	return not rotation_variants.is_empty()

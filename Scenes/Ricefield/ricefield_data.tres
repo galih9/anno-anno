@@ -10,6 +10,7 @@
 script = ExtResource("1_buildingdata")
 id = "ricefield"
 display_name = "Ricefield"
+building_type = 2
 scene = ExtResource("2_ricefield")
 preview_texture = ExtResource("3_whole")
 needs_connection = true

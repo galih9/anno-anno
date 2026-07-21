@@ -11,6 +11,7 @@
 [ext_resource type="Resource" uid="uid://drvs2xeoo4rxg" path="res://Scenes/Restaurant/restaurant_data.tres" id="8_rpwkb"]
 [ext_resource type="Resource" uid="uid://cx4t7ravhwmn2" path="res://Scenes/Ricefield/ricefield_data.tres" id="9_kxqao"]
 [ext_resource type="Script" uid="uid://bgye5i33j6vty" path="res://Lib/building_registry.gd" id="10_7004b"]
+[ext_resource type="Resource" uid="uid://cwbench0data1" path="res://Scenes/Bench/bench_data.tres" id="10_upxo3"]
 [ext_resource type="Script" uid="uid://cve38c5tgl1xl" path="res://Lib/connection_checker.gd" id="11_y3ia3"]
 [ext_resource type="Script" uid="uid://b0t3vrsvbc60" path="res://Lib/preview_handler.gd" id="12_kxqao"]
 [ext_resource type="LabelSettings" uid="uid://dup6ykwd47h1f" path="res://Assets/pixle_label_setting.tres" id="13_y3ia3"]
@@ -28,7 +29,7 @@ tile_set = ExtResource("3_wep2q")
 
 [node name="PlacementManager" type="Node" parent="." unique_id=785599526]
 script = ExtResource("3_krmlx")
-buildings = Array[ExtResource("5_2yf5i")]([ExtResource("6_5nxb0"), ExtResource("7_2yf5i"), ExtResource("8_rpwkb"), ExtResource("9_kxqao")])
+buildings = Array[ExtResource("5_2yf5i")]([ExtResource("6_5nxb0"), ExtResource("7_2yf5i"), ExtResource("8_rpwkb"), ExtResource("9_kxqao"), ExtResource("10_upxo3")])
 
 [node name="BuildingRegistry" type="Node" parent="PlacementManager" unique_id=1048434042]
 script = ExtResource("10_7004b")

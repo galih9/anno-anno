@@ -24,7 +24,7 @@ var _sprite: Sprite2D
 ## Call once from PlacementManager._setup() after the scene tree is ready.
 func setup(scene_parent: Node) -> void:
 	_sprite = Sprite2D.new()
-	_sprite.name    = "PreviewSprite"
+	_sprite.name     = "PreviewSprite"
 	_sprite.modulate = COLOR_VALID
 	_sprite.z_index  = 1
 	_sprite.visible  = false
@@ -33,6 +33,7 @@ func setup(scene_parent: Node) -> void:
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 ## Swap the preview texture and offset to match [param data].
+## Rotation is NOT reset here — call set_rotation_deg(0) separately when needed.
 func set_building(data: BuildingData) -> void:
 	if _sprite == null:
 		return
@@ -59,3 +60,12 @@ func set_visible(value: bool) -> void:
 	if _sprite == null:
 		return
 	_sprite.visible = value
+
+
+## Set the ghost sprite rotation in degrees.
+## Called by PlacementManager when building selection changes (reset to 0)
+## or when variant swapping changes the visual orientation.
+func set_rotation_deg(deg: float) -> void:
+	if _sprite == null:
+		return
+	_sprite.rotation_degrees = deg

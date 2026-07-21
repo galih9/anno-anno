@@ -99,6 +99,16 @@ func get_buildings_with_flag(flag: StringName) -> Array[Node2D]:
 	return result
 
 
+## Returns all placed buildings whose BuildingData.building_type matches [param type].
+func get_buildings_with_type(type: BuildingData.BuildingType) -> Array[Node2D]:
+	var result: Array[Node2D] = []
+	for building in get_all_buildings():
+		var data := _get_building_data(building)
+		if data != null and data.building_type == type:
+			result.append(building)
+	return result
+
+
 ## Returns the raw occupied dictionary (read-only view — do not mutate).
 func get_occupied_dict() -> Dictionary:
 	return _occupied
