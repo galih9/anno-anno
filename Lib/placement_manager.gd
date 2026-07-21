@@ -1,120 +1,63 @@
 # placement_manager.gd
 # Attach to a Node named "PlacementManager" inside Main.tscn.
 #
-# This version is SELF-CONTAINED: it finds LandLayer automatically,
-# and creates BuildingContainer + PreviewSprite at runtime.
-# You do NOT need to add extra nodes to the scene manually.
+# ── Responsibilities ───────────────────────────────────────────────────────────
+#   • Handle keyboard/mouse input for build mode and building selection
+#   • Resolve the LandLayer reference and create the BuildingContainer
+#   • Delegate each concern to its dedicated helper:
+#       BuildingRegistry   → occupied-cell tracking
+#       ConnectionChecker  → BFS path connectivity
+#       PreviewHandler     → ghost sprite
 #
-# The only things you must do in the Editor:
-#   1. Add a Node (type: Node) to Main as a child, name it "PlacementManager"
-#   2. Attach this script to it
-#   3. Set the export slots for path_scene, house_scene, restaurant_scene
+# ── Setup ──────────────────────────────────────────────────────────────────────
+#   1. Add a Node to Main as a child, name it "PlacementManager"
+#   2. Attach this script
+#   3. Add BuildingRegistry, ConnectionChecker, PreviewHandler as child nodes
+#      with those exact names (or adjust @onready paths below)
+#   4. In the Inspector, fill the `buildings` Array with your BuildingData .tres files
 #
-# Input Map (defined in project.godot):
-#   toggle_build  → E  : toggle build mode on/off
-#   building_1    → 1  : switch to Path
-#   building_2    → 2  : switch to House
-#   building_3    → 3  : switch to Restaurant
+# ── Input Map (Project Settings → Input Map) ──────────────────────────────────
+#   toggle_build  → E   : toggle build mode on/off
+#   building_1    → 1   : select buildings[0]
+#   building_2    → 2   : select buildings[1]
+#   building_3    → 3   : select buildings[2]
 
 extends Node
 
 # ─── Exports ──────────────────────────────────────────────────────────────────
 
-## Path scene (key 1). Drag res://Scenes/Path/path.tscn here.
-@export var path_scene: PackedScene
+## All building types available in this scene.
+## Order determines which key (building_1, building_2 …) selects each type.
+## To add a new building: create a BuildingData .tres and append it here.
+@export var buildings: Array[BuildingData] = []
 
-## House scene (key 2). Drag res://Scenes/House/house.tscn here.
-@export var house_scene: PackedScene
+# ─── Child node references ────────────────────────────────────────────────────
 
-## Restaurant scene (key 3). Drag res://Scenes/Restaurant/restaurant.tscn here.
-@export var restaurant_scene: PackedScene
+@onready var registry: BuildingRegistry       = $BuildingRegistry
+@onready var connection_checker: ConnectionChecker = $ConnectionChecker
+@onready var preview: PreviewHandler          = $PreviewHandler
 
-## Pixel offset applied to preview sprite so it lines up with placed buildings.
-## Tweak per-building in _update_preview_for_type() below if needed.
-@export var preview_offset: Vector2 = Vector2(0, -8)
-
-# ─── Building type enum ───────────────────────────────────────────────────────
-
-enum BuildingType { PATH = 1, HOUSE = 2, RESTAURANT = 3 }
-
-# ─── Constants ────────────────────────────────────────────────────────────────
-
-const PREVIEW_ALPHA: float = 0.55
-
-# Per-type footprint defined as arrays of Vector2i OFFSETS from the origin cell.
-# In the diamond-down isometric layout the clicked cell sits at the BOTTOM of
-# the building's isometric diamond.  Multi-tile buildings extend upward (toward
-# negative map coordinates) so that the visual sprite and the collision tiles
-# overlap perfectly.
-#
-# Pathway  (1×1)  – single tile, no offset needed.
-# House    (2×2)  – 4-tile diamond; origin is the bottom vertex.
-# Restaurant (3×2) – 6-tile parallelogram; origin at bottom-center.
-const FOOTPRINT_OFFSETS: Dictionary = {
-	BuildingType.PATH: [
-		Vector2i(0, 0),
-	],
-	BuildingType.HOUSE: [
-		Vector2i( 0,  0),   # bottom
-		Vector2i(-1,  0),   # left
-		Vector2i( 0, -1),   # right
-		Vector2i(-1, -1),   # top
-	],
-	BuildingType.RESTAURANT: [
-		Vector2i(-1,  0),   # bottom-left
-		Vector2i( 0,  0),   # bottom-right (origin)
-		Vector2i(-1, -1),   # middle-left
-		Vector2i( 0, -1),   # middle-right
-		Vector2i(-1, -2),   # top-left
-		Vector2i( 0, -2),   # top-right
-	],
-}
-
-# Asset paths for preview textures (one per building type)
-const PREVIEW_TEXTURES: Dictionary = {
-	BuildingType.PATH:       "res://Assets/pathway.png",
-	BuildingType.HOUSE:      "res://Assets/house_sprite.png",
-	BuildingType.RESTAURANT: "res://Assets/restaurant.png",
-}
-
-# Per-type sprite offsets to match the child Sprite2D LOCAL position in each scene.
-# Path:       Sprite2D position = Vector2(0, 0)
-# House:      Sprite2D position = Vector2(0, -8)
-# Restaurant: Sprite2D position = Vector2(8, -12)  ← includes the X shift
-const SPRITE_OFFSETS: Dictionary = {
-	BuildingType.PATH:        Vector2(0,   0),
-	BuildingType.HOUSE:       Vector2(0,  -8),
-	BuildingType.RESTAURANT:  Vector2(8, -12),
-}
-
-# ─── Internal node references (resolved in _ready) ────────────────────────────
+# ─── Internal state ───────────────────────────────────────────────────────────
 
 var _land_layer: TileMapLayer
 var _building_container: Node2D
-var _preview_sprite: Sprite2D
 
-# ─── Runtime state ────────────────────────────────────────────────────────────
-
-## Key: Vector2i map cell  |  Value: Node2D building that owns it
-var occupied: Dictionary = {}
-
+var _build_mode: bool         = false
 var _hovered_cell: Vector2i   = Vector2i.ZERO
 var _placement_valid: bool    = false
-var _build_mode: bool         = false
-var _current_type: BuildingType = BuildingType.HOUSE
+var _current_data: BuildingData
 
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
-	# Defer setup so that add_child() runs AFTER the scene tree is fully built.
 	call_deferred("_setup")
 
 
 func _setup() -> void:
-	# ── Find LandLayer ───────────────────────────────────────────────────────
+	# ── Resolve LandLayer ────────────────────────────────────────────────────
 	_land_layer = _find_land_layer()
 	if _land_layer == null:
-		push_error("PlacementManager: Could not find a TileMapLayer named 'LandLayer'. Make sure it exists as a sibling node.")
+		push_error("PlacementManager: Could not find a TileMapLayer named 'LandLayer'.")
 		return
 
 	# ── Create BuildingContainer ─────────────────────────────────────────────
@@ -123,64 +66,30 @@ func _setup() -> void:
 	_building_container.y_sort_enabled = true
 	get_parent().add_child(_building_container)
 
-	# ── Create PreviewSprite ─────────────────────────────────────────────────
-	_preview_sprite = Sprite2D.new()
-	_preview_sprite.name = "PreviewSprite"
-	_preview_sprite.modulate = Color(0.0, 1.0, 0.0, PREVIEW_ALPHA)
-	_preview_sprite.z_index  = 1
-	_preview_sprite.visible  = false
-	get_parent().add_child(_preview_sprite)
+	# ── Wire up helpers ──────────────────────────────────────────────────────
+	connection_checker.registry = registry
+	preview.setup(get_parent())
 
-	# Load the default building texture into the preview
-	_update_preview_for_type(_current_type)
+	# ── Default selection ────────────────────────────────────────────────────
+	if buildings.is_empty():
+		push_warning("PlacementManager: No BuildingData assigned. Assign at least one in the Inspector.")
+	else:
+		_select_building(0)
 
-	print("PlacementManager: ready. LandLayer found, BuildingContainer and PreviewSprite created.")
 	_print_help()
 
 
 func _process(_delta: float) -> void:
-	if not _land_layer or not _preview_sprite:
+	if not _land_layer:
 		return
 
-	# ── Handle keyboard input for building selection & toggle ─────────────
-	if Input.is_action_just_pressed("toggle_build"):
-		_build_mode = !_build_mode
-		_preview_sprite.visible = _build_mode
-		print("PlacementManager ▸ build mode: %s" % ("ON" if _build_mode else "OFF"))
-
-	if Input.is_action_just_pressed("building_1"):
-		_set_building_type(BuildingType.PATH)
-	if Input.is_action_just_pressed("building_2"):
-		_set_building_type(BuildingType.HOUSE)
-	if Input.is_action_just_pressed("building_3"):
-		_set_building_type(BuildingType.RESTAURANT)
+	_handle_build_toggle()
+	_handle_building_selection()
 
 	if not _build_mode:
 		return
 
-	# 1. Global mouse → LandLayer local → map cell
-	var world_mouse: Vector2 = _land_layer.get_global_mouse_position()
-	var local_mouse: Vector2 = _land_layer.to_local(world_mouse)
-	var cell: Vector2i       = _land_layer.local_to_map(local_mouse)
-	_hovered_cell = cell
-
-	# 2. Footprint
-	var footprint: Array[Vector2i] = _get_footprint(cell)
-
-	# 3. Validate
-	_placement_valid = _is_footprint_clear(footprint)
-
-	# 4. Snap preview position
-	var snapped_local: Vector2 = _land_layer.map_to_local(cell)
-	var snapped_world: Vector2 = _land_layer.to_global(snapped_local)
-	_preview_sprite.global_position = snapped_world
-	_preview_sprite.visible = true
-
-	# 5. Green / Red tint
-	if _placement_valid:
-		_preview_sprite.modulate = Color(0.0, 1.0, 0.0, PREVIEW_ALPHA)
-	else:
-		_preview_sprite.modulate = Color(1.0, 0.0, 0.0, PREVIEW_ALPHA)
+	_update_hover()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -192,115 +101,219 @@ func _unhandled_input(event: InputEvent) -> void:
 	if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 		_try_place_building()
 
-# ─── Building-type switching ──────────────────────────────────────────────────
+# ─── Input handlers ───────────────────────────────────────────────────────────
 
-func _set_building_type(type: BuildingType) -> void:
-	_current_type = type
-	_update_preview_for_type(type)
-	var name_map: Dictionary = {
-		BuildingType.PATH:        "Path",
-		BuildingType.HOUSE:       "House",
-		BuildingType.RESTAURANT:  "Restaurant",
-	}
-	print("PlacementManager ▸ selected: %s" % name_map.get(type, "Unknown"))
-
-
-func _update_preview_for_type(type: BuildingType) -> void:
-	if not _preview_sprite:
+func _handle_build_toggle() -> void:
+	if not Input.is_action_just_pressed("toggle_build"):
 		return
+	_build_mode = !_build_mode
+	preview.set_visible(_build_mode)
+	print("PlacementManager ▸ build mode: %s" % ("ON" if _build_mode else "OFF"))
 
-	# Load preview texture
-	var path: String = PREVIEW_TEXTURES.get(type, "")
-	if path != "" and ResourceLoader.exists(path):
-		_preview_sprite.texture = load(path) as Texture2D
-	else:
-		_preview_sprite.texture = null
 
-	# Match sprite offset of each scene's child Sprite2D
-	_preview_sprite.offset = SPRITE_OFFSETS.get(type, Vector2.ZERO)
+func _handle_building_selection() -> void:
+	# Map input action names to buildings[] indices.
+	# Extend this array when you add building_5, building_6, etc.
+	const ACTION_TO_INDEX: Array[String] = ["building_1", "building_2", "building_3", "building_4"]
+	for i in ACTION_TO_INDEX.size():
+		if Input.is_action_just_pressed(ACTION_TO_INDEX[i]):
+			_select_building(i)
+			break
+
+
+func _select_building(index: int) -> void:
+	if index < 0 or index >= buildings.size():
+		push_warning("PlacementManager: No building at index %d." % index)
+		return
+	_current_data = buildings[index]
+	preview.set_building(_current_data)
+	print("PlacementManager ▸ selected: %s" % _current_data.display_name)
+
+# ─── Hover / preview update ───────────────────────────────────────────────────
+
+func _update_hover() -> void:
+	var world_mouse: Vector2 = _land_layer.get_global_mouse_position()
+	var local_mouse: Vector2 = _land_layer.to_local(world_mouse)
+	_hovered_cell = _land_layer.local_to_map(local_mouse)
+
+	var footprint: Array[Vector2i] = _current_data.get_footprint(_hovered_cell)
+	_placement_valid = _is_footprint_placeable(footprint)
+
+	var snapped_world: Vector2 = _land_layer.to_global(_land_layer.map_to_local(_hovered_cell))
+	preview.update_position(snapped_world)
+	preview.set_visible(true)
+	preview.set_valid(_placement_valid)
 
 # ─── Placement ────────────────────────────────────────────────────────────────
 
 func _try_place_building() -> void:
-	if not _placement_valid:
+	if not _placement_valid or _current_data == null:
+		return
+	if _current_data.scene == null:
+		push_warning("PlacementManager: BuildingData '%s' has no scene assigned." % _current_data.display_name)
 		return
 
-	var scene: PackedScene = _get_scene_for_type(_current_type)
-	if not scene:
-		push_warning("PlacementManager: Scene for building type %d is not assigned." % _current_type)
+	# Ricefield has its own placement flow (main + surrounding field tiles).
+	if _current_data.is_ricefield:
+		_try_place_ricefield()
 		return
 
-	var footprint: Array[Vector2i] = _get_footprint(_hovered_cell)
-
-	var building: Node2D = scene.instantiate() as Node2D
+	var footprint: Array[Vector2i] = _current_data.get_footprint(_hovered_cell)
+	var building: Node2D = _current_data.scene.instantiate() as Node2D
 	if building == null:
 		push_error("PlacementManager: Scene root must extend Node2D.")
 		return
 
+	# Attach the BuildingData reference so registry and checkers can read it.
+	building.set_meta("data", _current_data)
+	# Also expose via property if the building script declares a `data` var.
+	if "data" in building:
+		building.data = _current_data
+
 	_building_container.add_child(building)
+	building.global_position = _land_layer.to_global(_land_layer.map_to_local(_hovered_cell))
 
-	var snapped_local: Vector2 = _land_layer.map_to_local(_hovered_cell)
-	building.global_position   = _land_layer.to_global(snapped_local)
+	# Remove any field tiles that occupy this footprint before claiming the cells.
+	_displace_fields_in_footprint(footprint)
+	registry.register(footprint, building)
+	connection_checker.update_all_connections()
 
-	for tile in footprint:
-		occupied[tile] = building
-
-	print("PlacementManager ▸ placed %s at %s  footprint: %s" % [BuildingType.keys()[_current_type - 1], _hovered_cell, footprint])
-	update_connections()
-
-
-func _get_scene_for_type(type: BuildingType) -> PackedScene:
-	match type:
-		BuildingType.PATH:        return path_scene
-		BuildingType.HOUSE:       return house_scene
-		BuildingType.RESTAURANT:  return restaurant_scene
-	return null
-
-# ─── Helpers ──────────────────────────────────────────────────────────────────
-
-func _get_footprint(origin: Vector2i) -> Array[Vector2i]:
-	# Look up the explicit offsets for the current building type.
-	# Uses match to avoid GDScript enum/int type-mismatch on Dictionary lookup.
-	var offsets: Array = []
-	match _current_type:
-		BuildingType.PATH:
-			offsets = FOOTPRINT_OFFSETS[BuildingType.PATH]
-		BuildingType.HOUSE:
-			offsets = FOOTPRINT_OFFSETS[BuildingType.HOUSE]
-		BuildingType.RESTAURANT:
-			offsets = FOOTPRINT_OFFSETS[BuildingType.RESTAURANT]
-	var tiles: Array[Vector2i] = []
-	for offset in offsets:
-		tiles.append(origin + offset)
-	return tiles
+	print("PlacementManager ▸ placed '%s' at %s  footprint: %s" % [
+		_current_data.display_name, _hovered_cell, footprint
+	])
 
 
-func _is_footprint_clear(footprint: Array[Vector2i]) -> bool:
-	for tile in footprint:
-		if occupied.has(tile):
-			return false
-			
-		var tile_data: TileData = _land_layer.get_cell_tile_data(tile)
-		# 0 is the ID for "Land" terrain in terrain_set 0
+## Place the main Ricefield building at the hovered cell, then stamp RicefieldField
+## tiles on every surrounding cell that is empty and on valid Land terrain.
+## Fields that would overlap an existing building are silently skipped.
+func _try_place_ricefield() -> void:
+	# ── Place main building ───────────────────────────────────────────────────────────────
+	var building: Node2D = _current_data.scene.instantiate() as Node2D
+	if building == null:
+		push_error("PlacementManager: Ricefield scene root must extend Node2D.")
+		return
+
+	building.set_meta("data", _current_data)
+	if "data" in building:
+		building.data = _current_data
+
+	_building_container.add_child(building)
+	building.global_position = _land_layer.to_global(_land_layer.map_to_local(_hovered_cell))
+
+	# A ricefield's main cell might land on another ricefield's field — displace it.
+	_displace_fields_in_footprint([_hovered_cell])
+	var main_cells: Array[Vector2i] = [_hovered_cell]
+	registry.register(main_cells, building)
+
+	# ── Stamp surrounding field tiles ───────────────────────────────────────────────────
+	var fields_placed: int = 0
+	if _current_data.field_scene != null:
+		for offset: Vector2i in _current_data.field_footprint_offsets:
+			var field_cell: Vector2i = _hovered_cell + offset
+
+			# Skip occupied cells — fields never overwrite existing buildings.
+			if registry.is_occupied(field_cell):
+				continue
+
+			# Fields must be on valid Land terrain, same rule as any other building.
+			var tile_data: TileData = _land_layer.get_cell_tile_data(field_cell)
+			if tile_data == null or tile_data.terrain != 0:
+				continue
+
+			var field_node: Node2D = _current_data.field_scene.instantiate() as Node2D
+			if field_node == null:
+				continue
+
+			# Store field BuildingData in metadata so ConnectionChecker can identify it.
+			if _current_data.field_building_data != null:
+				field_node.set_meta("data", _current_data.field_building_data)
+
+			_building_container.add_child(field_node)
+			field_node.global_position = _land_layer.to_global(_land_layer.map_to_local(field_cell))
+
+			var field_cells: Array[Vector2i] = [field_cell]
+			registry.register(field_cells, field_node)
+			fields_placed += 1
+
+	connection_checker.update_all_connections()
+	print("PlacementManager ▸ placed 'Ricefield' at %s with %d field(s) stamped" % [
+		_hovered_cell, fields_placed
+	])
+
+# ─── Placement validation ─────────────────────────────────────────────────────
+
+func _is_footprint_placeable(footprint: Array[Vector2i]) -> bool:
+	for cell in footprint:
+		if registry.is_occupied(cell):
+			# Ricefield field tiles act as soft obstacles — any new building may
+			# displace them, so treat them as empty for validation purposes.
+			if not _is_ricefield_field(registry.get_building_at(cell)):
+				return false
+		var tile_data: TileData = _land_layer.get_cell_tile_data(cell)
+		# terrain 0 = "Land" in terrain_set 0 (see land_tile.tres)
 		if tile_data == null or tile_data.terrain != 0:
 			return false
-			
 	return true
 
 
-## Walk up the tree from PlacementManager → look in siblings for a TileMapLayer named "LandLayer".
+## Returns true if [param node] is a RicefieldField tile, identified by its
+## BuildingData id.  Reads metadata first (scriptless scenes), then property.
+func _is_ricefield_field(node: Node2D) -> bool:
+	if node == null:
+		return false
+	var data: BuildingData = null
+	if node.has_meta("data"):
+		var meta = node.get_meta("data")
+		if meta is BuildingData:
+			data = meta as BuildingData
+	if data == null:
+		var prop = node.get("data")
+		if prop is BuildingData:
+			data = prop as BuildingData
+	return data != null and data.id == "ricefield_field"
+
+
+## Remove every RicefieldField tile occupying any cell in [param cells].
+## Call this before registering a new building so field nodes are freed cleanly
+## and ConnectionChecker's subsequent field count stays accurate.
+func _displace_fields_in_footprint(cells: Array[Vector2i]) -> void:
+	for cell in cells:
+		if not registry.is_occupied(cell):
+			continue
+		var occupant: Node2D = registry.get_building_at(cell)
+		if _is_ricefield_field(occupant):
+			registry.unregister(occupant)
+
+# ─── Public API ───────────────────────────────────────────────────────────────
+
+## Remove [param building] from the scene and free all its tiles.
+func remove_building(building: Node2D) -> void:
+	var freed: Array[Vector2i] = registry.unregister(building)
+	connection_checker.update_all_connections()
+	print("PlacementManager ▸ removed building, freed %d tile(s)." % freed.size())
+
+
+## Returns true if [param cell] is occupied.
+func is_tile_occupied(cell: Vector2i) -> bool:
+	return registry.is_occupied(cell)
+
+
+## Returns the building at [param cell], or null.
+func get_building_at(cell: Vector2i) -> Node2D:
+	return registry.get_building_at(cell)
+
+# ─── Tree helpers ─────────────────────────────────────────────────────────────
+
 func _find_land_layer() -> TileMapLayer:
 	var parent: Node = get_parent()
 	if parent == null:
 		return null
-	# Direct child named "LandLayer"
 	var node: Node = parent.get_node_or_null("LandLayer")
 	if node is TileMapLayer:
 		return node as TileMapLayer
-	# Fallback: search all children for any TileMapLayer
 	for child in parent.get_children():
 		if child is TileMapLayer:
-			push_warning("PlacementManager: 'LandLayer' not found by name; using first TileMapLayer found: '%s'" % child.name)
+			push_warning("PlacementManager: 'LandLayer' not found by name; using '%s'." % child.name)
 			return child as TileMapLayer
 	return null
 
@@ -308,89 +321,7 @@ func _find_land_layer() -> TileMapLayer:
 func _print_help() -> void:
 	print("─── PlacementManager controls ───")
 	print("  E   → toggle build mode")
-	print("  1   → select Path")
-	print("  2   → select House")
-	print("  3   → select Restaurant")
+	for i in buildings.size():
+		print("  %d   → select %s" % [i + 1, buildings[i].display_name])
 	print("  LMB → place selected building (in build mode)")
 	print("────────────────────────────────")
-
-# ─── Public API ───────────────────────────────────────────────────────────────
-
-func remove_building(building: Node2D) -> void:
-	var keys: Array[Vector2i] = []
-	for tile: Vector2i in occupied.keys():
-		if occupied[tile] == building:
-			keys.append(tile)
-	for tile in keys:
-		occupied.erase(tile)
-	building.queue_free()
-	print("PlacementManager ▸ removed building, freed %d tiles." % keys.size())
-	update_connections()
-
-func is_tile_occupied(cell: Vector2i) -> bool:
-	return occupied.has(cell)
-
-func get_building_at(cell: Vector2i) -> Node2D:
-	return occupied.get(cell, null) as Node2D
-
-func update_connections() -> void:
-	var all_buildings = []
-	for node in occupied.values():
-		if not node in all_buildings:
-			all_buildings.append(node)
-			
-	var houses = []
-	for b in all_buildings:
-		if b.scene_file_path.get_file() == "house.tscn":
-			houses.append(b)
-			
-	for house in houses:
-		var status = _check_house_connection(house)
-		if house.has_method("set_status"):
-			house.set_status(status.status, status.desc)
-
-func _check_house_connection(house: Node2D) -> Dictionary:
-	var house_tiles = []
-	for tile in occupied.keys():
-		if occupied[tile] == house:
-			house_tiles.append(tile)
-			
-	var adjacent_paths = []
-	for tile in house_tiles:
-		for offset in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
-			var neighbor_tile = tile + offset
-			if occupied.has(neighbor_tile):
-				var neighbor = occupied[neighbor_tile]
-				if neighbor != house and neighbor.scene_file_path.get_file() == "path.tscn":
-					if not neighbor in adjacent_paths:
-						adjacent_paths.append(neighbor)
-						
-	if adjacent_paths.is_empty():
-		return {"status": "Disconnected", "desc": "no path"}
-		
-	var visited = []
-	var queue = []
-	queue.append_array(adjacent_paths)
-	for p in adjacent_paths:
-		visited.append(p)
-		
-	while not queue.is_empty():
-		var current_path = queue.pop_front()
-		
-		var path_tiles = []
-		for tile in occupied.keys():
-			if occupied[tile] == current_path:
-				path_tiles.append(tile)
-				
-		for tile in path_tiles:
-			for offset in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
-				var neighbor_tile = tile + offset
-				if occupied.has(neighbor_tile):
-					var neighbor = occupied[neighbor_tile]
-					if neighbor.scene_file_path.get_file() == "restaurant.tscn":
-						return {"status": "Connected", "desc": "activated"}
-					elif neighbor.scene_file_path.get_file() == "path.tscn" and not neighbor in visited:
-						visited.append(neighbor)
-						queue.append(neighbor)
-						
-	return {"status": "Disconnected", "desc": "pathway not connected to restaurant"}

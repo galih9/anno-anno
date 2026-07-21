@@ -1,0 +1,8 @@
+[gd_resource type="LabelSettings" format=3 uid="uid://dup6ykwd47h1f"]
+
+[ext_resource type="FontFile" uid="uid://m31iuv6hppn1" path="res://Assets/Silkscreen-Regular.ttf" id="1_kec3m"]
+
+[resource]
+line_spacing = 1.0
+font = ExtResource("1_kec3m")
+font_size = 20

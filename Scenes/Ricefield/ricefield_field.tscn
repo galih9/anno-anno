@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://dm5lahcxbpqr3"]
+
+[ext_resource type="Texture2D" uid="uid://bs76ny3apmub6" path="res://Assets/field.png" id="1_field"]
+
+[node name="RicefieldField" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_field")

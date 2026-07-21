@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://1ur7henafls8"]
+
+[ext_resource type="Texture2D" uid="uid://kts1r1105k88" path="res://Assets/ricefield_main.png" id="1_main"]
+[ext_resource type="Script" uid="uid://bxsvu2yati81n" path="res://Scenes/Ricefield/ricefield.gd" id="2_script"]
+[ext_resource type="FontFile" uid="uid://m31iuv6hppn1" path="res://Assets/Silkscreen-Regular.ttf" id="3_font"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_0vwyf"]
+font = ExtResource("3_font")
+font_size = 4
+
+[node name="Ricefield" type="Node2D" unique_id=804964243]
+y_sort_enabled = true
+script = ExtResource("2_script")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=320284959]
+texture = ExtResource("1_main")
+
+[node name="Container" type="Control" parent="." unique_id=265418955]
+z_index = 10
+layout_mode = 3
+anchors_preset = 0
+offset_left = -21.0
+offset_top = -13.0
+offset_right = 40.0
+offset_bottom = 8.0
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="Container" unique_id=1105278788]
+layout_mode = 0
+offset_right = 61.0
+offset_bottom = 21.0
+text = "Status: Disconnected
+Desc: no path, no fields"
+label_settings = SubResource("LabelSettings_0vwyf")

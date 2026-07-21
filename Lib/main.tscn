@@ -4,10 +4,16 @@
 [ext_resource type="TileSet" uid="uid://be6uh335fxlty" path="res://Lib/land_tile.tres" id="2_rabtv"]
 [ext_resource type="Script" uid="uid://cs1chxelbwuet" path="res://Lib/placement_manager.gd" id="3_krmlx"]
 [ext_resource type="TileSet" uid="uid://0dbrr4fjctkp" path="res://Lib/preview_tile.tres" id="3_wep2q"]
-[ext_resource type="PackedScene" uid="uid://c1e25dmtk26yi" path="res://Scenes/House/house.tscn" id="4_rabtv"]
-[ext_resource type="PackedScene" uid="uid://cq3s2qwawjasl" path="res://Scenes/Path/path.tscn" id="5_path1"]
-[ext_resource type="PackedScene" uid="uid://cicw40jx5xwbx" path="res://Scenes/Restaurant/restaurant.tscn" id="6_rest1"]
+[ext_resource type="Script" uid="uid://qcvlj6htmkm1" path="res://Lib/building_data.gd" id="5_2yf5i"]
+[ext_resource type="Resource" uid="uid://hhr7y1g2ojf4" path="res://Scenes/Path/path_data.tres" id="6_5nxb0"]
+[ext_resource type="Resource" uid="uid://dupgivekyu0x4" path="res://Scenes/House/house_data.tres" id="7_2yf5i"]
 [ext_resource type="Script" path="res://Lib/camera_controller.gd" id="7_camgd"]
+[ext_resource type="Resource" uid="uid://drvs2xeoo4rxg" path="res://Scenes/Restaurant/restaurant_data.tres" id="8_rpwkb"]
+[ext_resource type="Resource" uid="uid://cx4t7ravhwmn2" path="res://Scenes/Ricefield/ricefield_data.tres" id="9_kxqao"]
+[ext_resource type="Script" uid="uid://bgye5i33j6vty" path="res://Lib/building_registry.gd" id="10_7004b"]
+[ext_resource type="Script" uid="uid://cve38c5tgl1xl" path="res://Lib/connection_checker.gd" id="11_y3ia3"]
+[ext_resource type="Script" uid="uid://b0t3vrsvbc60" path="res://Lib/preview_handler.gd" id="12_kxqao"]
+[ext_resource type="LabelSettings" uid="uid://dup6ykwd47h1f" path="res://Assets/pixle_label_setting.tres" id="13_y3ia3"]
 
 [node name="Main" type="Node2D" unique_id=961107469]
 y_sort_enabled = true
@@ -22,10 +28,35 @@ tile_set = ExtResource("3_wep2q")
 
 [node name="PlacementManager" type="Node" parent="." unique_id=785599526]
 script = ExtResource("3_krmlx")
-path_scene = ExtResource("5_path1")
-house_scene = ExtResource("4_rabtv")
-restaurant_scene = ExtResource("6_rest1")
+buildings = Array[ExtResource("5_2yf5i")]([ExtResource("6_5nxb0"), ExtResource("7_2yf5i"), ExtResource("8_rpwkb"), ExtResource("9_kxqao")])
+
+[node name="BuildingRegistry" type="Node" parent="PlacementManager" unique_id=1048434042]
+script = ExtResource("10_7004b")
+
+[node name="ConnectionChecker" type="Node" parent="PlacementManager" unique_id=607300841]
+script = ExtResource("11_y3ia3")
+
+[node name="PreviewHandler" type="Node" parent="PlacementManager" unique_id=467115620]
+script = ExtResource("12_kxqao")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=812345678]
 zoom = Vector2(2, 2)
 script = ExtResource("7_camgd")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=953172604]
+
+[node name="Control" type="Control" parent="CanvasLayer" unique_id=71311126]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/Control" unique_id=178747013]
+layout_mode = 0
+offset_right = 50.0
+offset_bottom = 28.0
+text = "Gold: 500"
+label_settings = ExtResource("13_y3ia3")

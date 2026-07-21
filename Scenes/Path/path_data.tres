@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="BuildingData" format=3 uid="uid://hhr7y1g2ojf4"]
+
+[ext_resource type="Script" uid="uid://qcvlj6htmkm1" path="res://Lib/building_data.gd" id="1_buildingdata"]
+[ext_resource type="PackedScene" uid="uid://cq3s2qwawjasl" path="res://Scenes/Path/path.tscn" id="2_ihxhy"]
+[ext_resource type="Texture2D" uid="uid://c80ki1cx71heg" path="res://Assets/pathway.png" id="2_pathway"]
+
+[resource]
+script = ExtResource("1_buildingdata")
+id = "path"
+display_name = "Path"
+scene = ExtResource("2_ihxhy")
+preview_texture = ExtResource("2_pathway")
+is_connector = true

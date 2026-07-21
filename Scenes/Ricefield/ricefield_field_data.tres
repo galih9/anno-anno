@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="BuildingData" format=3 uid="uid://b8xcq5m2nrfy1"]
+
+[ext_resource type="Script" uid="uid://qcvlj6htmkm1" path="res://Lib/building_data.gd" id="1_buildingdata"]
+
+[resource]
+script = ExtResource("1_buildingdata")
+id = "ricefield_field"
+display_name = "Ricefield Field"

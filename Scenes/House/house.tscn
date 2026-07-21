@@ -4,8 +4,7 @@
 [ext_resource type="Script" uid="uid://dc3plxyyfiib1" path="res://Scenes/House/house.gd" id="1_x6o7t"]
 [ext_resource type="FontFile" uid="uid://m31iuv6hppn1" path="res://Assets/Silkscreen-Regular.ttf" id="3_ha0hn"]
 
-[sub_resource type="LabelSettings" id="LabelSettings_g4v7s"]
-line_spacing = 1.0
+[sub_resource type="LabelSettings" id="LabelSettings_kxqao"]
 font = ExtResource("3_ha0hn")
 font_size = 4
 
@@ -33,4 +32,4 @@ offset_right = 61.0
 offset_bottom = 21.0
 text = "Status: Disconnected
 Desc: no path"
-label_settings = SubResource("LabelSettings_g4v7s")
+label_settings = SubResource("LabelSettings_kxqao")
