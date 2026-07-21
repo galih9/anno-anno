@@ -30,7 +30,7 @@ extends Camera2D
 @export var edge_margin: int = 20
 
 ## Maximum pan speed in pixels/second (at the very edge of the screen).
-@export var pan_speed: float = 100.0
+@export var pan_speed: float = 200.0
 
 # ─── Internal ─────────────────────────────────────────────────────────────────
 
