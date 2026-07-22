@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://c1e25dmtk26yi"]
 
 [ext_resource type="Texture2D" uid="uid://dfoigkwiyy7ss" path="res://Assets/house_sprite.png" id="1_hfkix"]
-[ext_resource type="Script" uid="uid://dc3plxyyfiib1" path="res://Scenes/House/house.gd" id="1_x6o7t"]
+[ext_resource type="Script" uid="uid://dc3plxyyfiib1" path="res://Scenes/Residential/House/house.gd" id="1_x6o7t"]
 [ext_resource type="FontFile" uid="uid://m31iuv6hppn1" path="res://Assets/Silkscreen-Regular.ttf" id="3_ha0hn"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_kxqao"]

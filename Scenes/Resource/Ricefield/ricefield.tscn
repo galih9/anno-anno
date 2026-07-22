@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://1ur7henafls8"]
 
 [ext_resource type="Texture2D" uid="uid://kts1r1105k88" path="res://Assets/ricefield_main.png" id="1_main"]
-[ext_resource type="Script" uid="uid://bxsvu2yati81n" path="res://Scenes/Ricefield/ricefield.gd" id="2_script"]
+[ext_resource type="Script" uid="uid://bxsvu2yati81n" path="res://Scenes/Resource/Ricefield/ricefield.gd" id="2_script"]
 [ext_resource type="FontFile" uid="uid://m31iuv6hppn1" path="res://Assets/Silkscreen-Regular.ttf" id="3_font"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_0vwyf"]

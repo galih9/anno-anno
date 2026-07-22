@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cicw40jx5xwbx"]
 
 [ext_resource type="Texture2D" uid="uid://n7j3ma2cjlfv" path="res://Assets/restaurant.png" id="1_ahc38"]
-[ext_resource type="Script" uid="uid://bv2rxqy8trp8g" path="res://Scenes/Restaurant/restaurant.gd" id="1_qesjh"]
+[ext_resource type="Script" uid="uid://bv2rxqy8trp8g" path="res://Scenes/Public/Restaurant/restaurant.gd" id="1_qesjh"]
 [ext_resource type="FontFile" uid="uid://m31iuv6hppn1" path="res://Assets/Silkscreen-Regular.ttf" id="2_nkuot"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_qesjh"]

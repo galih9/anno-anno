@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="BuildingData" format=3 uid="uid://dupgivekyu0x4"]
 
 [ext_resource type="Script" uid="uid://qcvlj6htmkm1" path="res://Lib/building_data.gd" id="1_buildingdata"]
-[ext_resource type="PackedScene" uid="uid://c1e25dmtk26yi" path="res://Scenes/House/house.tscn" id="2_3oqjo"]
+[ext_resource type="PackedScene" uid="uid://c1e25dmtk26yi" path="res://Scenes/Residential/House/house.tscn" id="2_3oqjo"]
 [ext_resource type="Texture2D" uid="uid://dfoigkwiyy7ss" path="res://Assets/house_sprite.png" id="2_house"]
 
 [resource]

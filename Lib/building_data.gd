@@ -33,6 +33,9 @@ enum BuildingType {
 ## propagation, and status logic without hardcoding per-id branches.
 @export var building_type: BuildingType = BuildingType.CONNECTOR
 
+## The cost of placing this building. Defaults to 0.
+@export var cost: int = 0
+
 # ─── Scene ────────────────────────────────────────────────────────────────────
 
 ## The PackedScene to instantiate when this building is placed.

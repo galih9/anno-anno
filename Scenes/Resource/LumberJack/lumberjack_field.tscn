@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://cl783rjbpcqgf"]
+
+[ext_resource type="Texture2D" uid="uid://bs76ny3apmub6" path="res://Assets/field.png" id="1_820ow"]
+
+[node name="LumberjackField" type="Node2D" unique_id=767561437]
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=457922498]
+texture = ExtResource("1_820ow")

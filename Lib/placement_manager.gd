@@ -120,11 +120,15 @@ func _process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _build_mode:
 		return
-	if not (event is InputEventMouseButton):
-		return
-	var mb := event as InputEventMouseButton
-	if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-		_try_place_building()
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+			_try_place_building()
+	elif event is InputEventMouseMotion:
+		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			if _current_data != null and _current_data.is_connector:
+				_update_hover()
+				_try_place_building()
 
 # ─── Input handlers ───────────────────────────────────────────────────────────
 
@@ -219,10 +223,14 @@ func _try_place_building() -> void:
 	_building_container.add_child(building)
 	building.global_position = _land_layer.to_global(_land_layer.map_to_local(_hovered_cell))
 
-	# Remove any field tiles that occupy this footprint before claiming the cells.
 	_displace_fields_in_footprint(footprint)
 	registry.register(footprint, building)
 	connection_checker.update_all_connections()
+
+	var main_node = get_parent()
+	if "gold" in main_node:
+		main_node.gold -= _current_data.cost
+		print("PlacementManager ▸ deducted %d gold. Current gold: %d" % [_current_data.cost, main_node.gold])
 
 	print("PlacementManager ▸ placed '%s' at %s  footprint: %s" % [
 		_current_data.display_name, _hovered_cell, footprint
@@ -282,6 +290,12 @@ func _try_place_ricefield() -> void:
 			fields_placed += 1
 
 	connection_checker.update_all_connections()
+	
+	var main_node = get_parent()
+	if "gold" in main_node:
+		main_node.gold -= _current_data.cost
+		print("PlacementManager ▸ deducted %d gold. Current gold: %d" % [_current_data.cost, main_node.gold])
+
 	print("PlacementManager ▸ placed 'Ricefield' at %s with %d field(s) stamped" % [
 		_hovered_cell, fields_placed
 	])

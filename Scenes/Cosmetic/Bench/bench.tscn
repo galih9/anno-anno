@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://b57l1s261svir"]
 
-[ext_resource type="Script" uid="uid://dxcoe4ye7nwj6" path="res://Scenes/Bench/bench.gd" id="1_u310i"]
+[ext_resource type="Script" uid="uid://dxcoe4ye7nwj6" path="res://Scenes/Cosmetic/Bench/bench.gd" id="1_u310i"]
 [ext_resource type="Texture2D" uid="uid://d0pljsk1x4l2o" path="res://Assets/bench-h.png" id="2_cpx3p"]
 [ext_resource type="FontFile" uid="uid://m31iuv6hppn1" path="res://Assets/Silkscreen-Regular.ttf" id="3_font"]
 

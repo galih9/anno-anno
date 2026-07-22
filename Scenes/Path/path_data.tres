@@ -11,3 +11,4 @@ display_name = "Path"
 scene = ExtResource("2_ihxhy")
 preview_texture = ExtResource("2_pathway")
 is_connector = true
+cost = 10

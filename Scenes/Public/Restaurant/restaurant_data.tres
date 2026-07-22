@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://qcvlj6htmkm1" path="res://Lib/building_data.gd" id="1_buildingdata"]
 [ext_resource type="Texture2D" uid="uid://n7j3ma2cjlfv" path="res://Assets/restaurant.png" id="2_restaurant"]
-[ext_resource type="PackedScene" uid="uid://cicw40jx5xwbx" path="res://Scenes/Restaurant/restaurant.tscn" id="2_utu5h"]
+[ext_resource type="PackedScene" uid="uid://cicw40jx5xwbx" path="res://Scenes/Public/Restaurant/restaurant.tscn" id="2_utu5h"]
 
 [resource]
 script = ExtResource("1_buildingdata")

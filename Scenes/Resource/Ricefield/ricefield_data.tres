@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="BuildingData" format=3 uid="uid://cx4t7ravhwmn2"]
 
 [ext_resource type="Script" uid="uid://qcvlj6htmkm1" path="res://Lib/building_data.gd" id="1_buildingdata"]
-[ext_resource type="PackedScene" uid="uid://1ur7henafls8" path="res://Scenes/Ricefield/ricefield.tscn" id="2_ricefield"]
+[ext_resource type="PackedScene" uid="uid://1ur7henafls8" path="res://Scenes/Resource/Ricefield/ricefield.tscn" id="2_ricefield"]
 [ext_resource type="Texture2D" uid="uid://cbtt235gbvakn" path="res://Assets/ricefield_whole.png" id="3_whole"]
-[ext_resource type="PackedScene" uid="uid://dm5lahcxbpqr3" path="res://Scenes/Ricefield/ricefield_field.tscn" id="4_fieldscene"]
-[ext_resource type="Resource" uid="uid://b8xcq5m2nrfy1" path="res://Scenes/Ricefield/ricefield_field_data.tres" id="5_fielddata"]
+[ext_resource type="PackedScene" uid="uid://dm5lahcxbpqr3" path="res://Scenes/Resource/Ricefield/ricefield_field.tscn" id="4_fieldscene"]
+[ext_resource type="Resource" uid="uid://b8xcq5m2nrfy1" path="res://Scenes/Resource/Ricefield/ricefield_field_data.tres" id="5_fielddata"]
 
 [resource]
 script = ExtResource("1_buildingdata")
