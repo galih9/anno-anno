@@ -1,4 +1,6 @@
-[gd_scene format=3 uid="uid://b6h512skqrjwf"]
+[gd_scene load_steps=4 format=3 uid="uid://b6h512skqrjwf"]
+
+[ext_resource type="Script" path="res://Scenes/Resource/LumberJack/lumberjack.gd" id="1_script"]
 
 [ext_resource type="FontFile" uid="uid://m31iuv6hppn1" path="res://Assets/Silkscreen-Regular.ttf" id="1_mkg6o"]
 [ext_resource type="Texture2D" uid="uid://kts1r1105k88" path="res://Assets/ricefield_main.png" id="1_uckdy"]
@@ -8,6 +10,7 @@ font = ExtResource("1_mkg6o")
 font_size = 4
 
 [node name="Lumberjack" type="Node2D" unique_id=449080216]
+script = ExtResource("1_script")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1378489632]
 texture = ExtResource("1_uckdy")

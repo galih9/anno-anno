@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="BuildingData" format=3]
+
+[ext_resource type="Script" uid="uid://qcvlj6htmkm1" path="res://Lib/building_data.gd" id="1_buildingdata"]
+[ext_resource type="PackedScene" uid="uid://b6h512skqrjwf" path="res://Scenes/Resource/LumberJack/lumberjack.tscn" id="2_scene"]
+[ext_resource type="Texture2D" uid="uid://cbtt235gbvakn" path="res://Assets/ricefield_whole.png" id="3_whole"]
+[ext_resource type="PackedScene" uid="uid://cl783rjbpcqgf" path="res://Scenes/Resource/LumberJack/lumberjack_field.tscn" id="4_fieldscene"]
+[ext_resource type="Resource" path="res://Scenes/Resource/LumberJack/lumberjack_field_data.tres" id="5_fielddata"]
+
+[resource]
+script = ExtResource("1_buildingdata")
+id = "lumberjack"
+display_name = "Lumberjack"
+building_type = 2
+cost = 100
+scene = ExtResource("2_scene")
+preview_texture = ExtResource("3_whole")
+sprite_offset = Vector2(0, 0)
+footprint_offsets = Array[Vector2i]([Vector2i(0, 0)])
+is_connector = false
+is_destination = false
+needs_connection = true
+influence_radius = 0
+rotation_variants = Array[ExtResource("1_buildingdata")]([])
+is_ricefield = true
+field_scene = ExtResource("4_fieldscene")
+field_building_data = ExtResource("5_fielddata")
+field_footprint_offsets = Array[Vector2i]([Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)])

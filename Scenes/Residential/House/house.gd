@@ -26,6 +26,8 @@ enum Level  { PEASANT }
 const ABANDON_TIME: float      = 30.0
 const ABANDON_THRESHOLD: float = 0.4
 
+const POPULATION_CAPACITY: int = 4
+
 ## Base happiness when connected to a destination via path.
 const HAPPINESS_CONNECTED: float    = 0.5
 ## Base happiness when NOT connected (no path or no destination reachable).

@@ -94,6 +94,11 @@ func _setup() -> void:
 	connection_checker.registry = registry
 	preview.setup(get_parent())
 
+	# Add lumberjack dynamically so it shows up
+	var lj_data = load("res://Scenes/Resource/LumberJack/lumberjack_data.tres")
+	if lj_data and not buildings.has(lj_data):
+		buildings.append(lj_data)
+
 	# ── Default selection ────────────────────────────────────────────────────
 	if buildings.is_empty():
 		push_warning("PlacementManager: No BuildingData assigned. Assign at least one in the Inspector.")
@@ -151,9 +156,15 @@ func _select_building(index: int) -> void:
 	if index < 0 or index >= buildings.size():
 		push_warning("PlacementManager: No building at index %d." % index)
 		return
-	_base_data      = buildings[index]
-	_current_data   = _base_data
+	start_placement(buildings[index])
+
+## Public API to start placing a specific BuildingData (called by UI)
+func start_placement(data: BuildingData) -> void:
+	_base_data      = data
+	_current_data   = data
 	_rotation_index = -1
+	_build_mode = true
+	preview.set_visible(true)
 	preview.set_building(_current_data)
 	preview.set_rotation_deg(0.0)
 	print("PlacementManager ▸ selected: %s" % _current_data.display_name)
@@ -230,11 +241,25 @@ func _try_place_building() -> void:
 	var main_node = get_parent()
 	if "gold" in main_node:
 		main_node.gold -= _current_data.cost
-		print("PlacementManager ▸ deducted %d gold. Current gold: %d" % [_current_data.cost, main_node.gold])
+	if _current_data.id == "house" and "log" in main_node:
+		main_node.log -= 10
+		print("PlacementManager ▸ deducted 10 log. Current log: %d" % main_node.log)
 
 	print("PlacementManager ▸ placed '%s' at %s  footprint: %s" % [
 		_current_data.display_name, _hovered_cell, footprint
 	])
+	
+	_handle_post_placement()
+
+func _handle_post_placement() -> void:
+	if _current_data == null:
+		return
+	var type = _current_data.building_type
+	if type != BuildingData.BuildingType.CONNECTOR and type != BuildingData.BuildingType.RESIDENT and type != BuildingData.BuildingType.COSMETIC:
+		_build_mode = false
+		preview.set_visible(false)
+		_base_data = null
+		_current_data = null
 
 
 ## Place the main Ricefield building at the hovered cell, then stamp RicefieldField
@@ -299,10 +324,19 @@ func _try_place_ricefield() -> void:
 	print("PlacementManager ▸ placed 'Ricefield' at %s with %d field(s) stamped" % [
 		_hovered_cell, fields_placed
 	])
+	
+	_handle_post_placement()
 
 # ─── Placement validation ─────────────────────────────────────────────────────
 
 func _is_footprint_placeable(footprint: Array[Vector2i]) -> bool:
+	var main_node = get_parent()
+	if _current_data != null:
+		if "gold" in main_node and main_node.gold < _current_data.cost:
+			return false
+		if _current_data.id == "house" and "log" in main_node and main_node.log < 10:
+			return false
+			
 	for cell in footprint:
 		if registry.is_occupied(cell):
 			# Ricefield field tiles act as soft obstacles — any new building may
