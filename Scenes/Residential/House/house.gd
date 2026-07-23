@@ -48,12 +48,10 @@ var _base_happiness: float      = HAPPINESS_DISCONNECTED
 var _bench_bonus:    float      = 0.0
 var _low_happiness_timer: float = 0.0
 
-@onready var label = $Container/Label
-
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
-	_refresh_label()
+	pass
 
 
 func _process(delta: float) -> void:
@@ -63,12 +61,16 @@ func _process(delta: float) -> void:
 		_low_happiness_timer += delta
 		if _low_happiness_timer >= ABANDON_TIME:
 			status = Status.ABANDONED
-			_refresh_label()
 	else:
 		# Reset timer as soon as happiness recovers or house is already abandoned.
 		_low_happiness_timer = 0.0
 
 # ─── Public API ───────────────────────────────────────────────────────────────
+
+func get_info_text() -> String:
+	return "Status: %s\nHappiness: %.0f%%\nLevel: %s" % [
+		Status.keys()[status], happiness * 100.0, Level.keys()[level]
+	]
 
 ## Called by ConnectionChecker after every BFS pass.
 ## Drives the base happiness level from connection state.
@@ -101,12 +103,3 @@ func apply_happiness_bonus(amount: float) -> void:
 
 func _recalculate_happiness() -> void:
 	happiness = clamp(_base_happiness + _bench_bonus, 0.0, 1.0)
-	_refresh_label()
-
-
-func _refresh_label() -> void:
-	if label == null:
-		return
-	label.text = "Status: %s\nHappiness: %.0f%%\nLevel: %s" % [
-		Status.keys()[status], happiness * 100.0, Level.keys()[level]
-	]

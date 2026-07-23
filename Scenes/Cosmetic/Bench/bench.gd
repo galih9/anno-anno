@@ -18,13 +18,17 @@ var data: BuildingData
 # ─── Private ──────────────────────────────────────────────────────────────────
 
 @onready var _sprite: Sprite2D = $Sprite2D
-@onready var label = $Container/Label
 
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
 	_apply_orientation()
-	_refresh_label()
+
+# ─── Public API ───────────────────────────────────────────────────────────────
+
+func get_info_text() -> String:
+	var radius: int = data.influence_radius if data != null else 0
+	return "Radius: %d tiles" % radius
 
 # ─── Private helpers ──────────────────────────────────────────────────────────
 
@@ -42,10 +46,3 @@ func _apply_orientation() -> void:
 	# Apply the sprite_offset defined in BuildingData so the sprite sits
 	# correctly over the tile origin (same offset used by the ghost preview).
 	_sprite.position = data.sprite_offset
-
-
-func _refresh_label() -> void:
-	if label == null:
-		return
-	var radius: int = data.influence_radius if data != null else 0
-	label.text = "Bench\nRadius: %d" % radius

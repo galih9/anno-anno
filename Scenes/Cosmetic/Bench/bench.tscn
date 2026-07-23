@@ -2,33 +2,9 @@
 
 [ext_resource type="Script" uid="uid://dxcoe4ye7nwj6" path="res://Scenes/Cosmetic/Bench/bench.gd" id="1_u310i"]
 [ext_resource type="Texture2D" uid="uid://d0pljsk1x4l2o" path="res://Assets/bench-h.png" id="2_cpx3p"]
-[ext_resource type="FontFile" uid="uid://m31iuv6hppn1" path="res://Assets/Silkscreen-Regular.ttf" id="3_font"]
-
-[sub_resource type="LabelSettings" id="LabelSettings_bench"]
-font = ExtResource("3_font")
-font_size = 4
-
 [node name="Bench" type="Node2D" unique_id=881830060]
 y_sort_enabled = true
 script = ExtResource("1_u310i")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1375242529]
 texture = ExtResource("2_cpx3p")
-
-[node name="Container" type="Control" parent="." unique_id=881830061]
-z_index = 10
-layout_mode = 3
-anchors_preset = 0
-offset_left = -21.0
-offset_top = -13.0
-offset_right = 40.0
-offset_bottom = 8.0
-mouse_filter = 2
-
-[node name="Label" type="Label" parent="Container" unique_id=881830062]
-layout_mode = 0
-offset_right = 61.0
-offset_bottom = 21.0
-text = "Bench
-Radius: 4"
-label_settings = SubResource("LabelSettings_bench")

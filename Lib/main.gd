@@ -61,18 +61,15 @@ func _on_resource_tick() -> void:
 			current_population += cap
 			gen_gold += 2 # Gold generation per house
 			
-	# Process resources (food and log)
+	# Process resources (food and log into building local storage)
 	var resources = registry.get_buildings_with_type(BuildingData.BuildingType.RESOURCE)
 	for res in resources:
 		if "status" in res and res.status == 0: # ACTIVE
-			if "data" in res and res.data:
-				if res.data.id == "lumberjack":
-					gen_log += 5
-				elif res.data.is_ricefield:
-					gen_food += 5
-					
+			if res.has_method("process_tick"):
+				res.process_tick()
+			elif res.has_method("add_produced_resource"):
+				res.add_produced_resource(5)
+
 	# Apply calculated values
 	population = current_population
 	gold += gen_gold
-	food += gen_food
-	log += gen_log

@@ -249,3 +249,78 @@ func _count_adjacent_fields(building_cells: Array[Vector2i], building: Node2D) -
 				count += 1
 
 	return count
+
+
+## Finds a grid cell path from [param from_building] to [param to_building] through connector tiles.
+## Returns an Array of Vector2i grid cells representing the path.
+func find_path(from_building: Node2D, to_building: Node2D) -> Array[Vector2i]:
+	if registry == null or from_building == null or to_building == null:
+		return []
+
+	var occupied: Dictionary = registry.get_occupied_dict()
+	var start_cells: Array[Vector2i] = registry.get_cells_of(from_building)
+	var end_cells: Array[Vector2i] = registry.get_cells_of(to_building)
+	if start_cells.is_empty() or end_cells.is_empty():
+		return []
+
+	var end_cell_set: Dictionary = {}
+	for c in end_cells:
+		end_cell_set[c] = true
+
+	var initial_connectors := _get_adjacent_connectors(start_cells, from_building, occupied)
+	if initial_connectors.is_empty():
+		return []
+
+	var queue: Array[Vector2i] = []
+	var visited: Dictionary = {}
+	var parent: Dictionary = {}
+
+	for connector in initial_connectors:
+		var c_cells := registry.get_cells_of(connector)
+		for cell in c_cells:
+			if not visited.has(cell):
+				visited[cell] = true
+				queue.append(cell)
+
+	var target_cell: Vector2i = Vector2i.MIN
+	var found: bool = false
+
+	while not queue.is_empty():
+		var current_cell: Vector2i = queue.pop_front()
+		
+		# Check if current_cell is adjacent to target building
+		for dir in CARDINAL:
+			if end_cell_set.has(current_cell + dir):
+				target_cell = current_cell
+				found = true
+				break
+		if found:
+			break
+
+		for dir in CARDINAL:
+			var neighbor_cell: Vector2i = current_cell + dir
+			if visited.has(neighbor_cell):
+				continue
+			if not occupied.has(neighbor_cell):
+				continue
+			var building: Node2D = occupied[neighbor_cell]
+			var data: BuildingData = _get_data(building)
+			if data != null and data.is_connector:
+				visited[neighbor_cell] = true
+				parent[neighbor_cell] = current_cell
+				queue.append(neighbor_cell)
+
+	if not found:
+		return []
+
+	var path: Array[Vector2i] = []
+	var curr: Vector2i = target_cell
+	while true:
+		path.append(curr)
+		if parent.has(curr):
+			curr = parent[curr]
+		else:
+			break
+	path.reverse()
+	return path
+

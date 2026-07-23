@@ -1,0 +1,83 @@
+[gd_scene format=3 uid="uid://dn47mdxwd8vw6"]
+
+[ext_resource type="Script" uid="uid://ciqhcpltvrunw" path="res://Scenes/NPCs/Collector/collector.gd" id="1_cgiur"]
+[ext_resource type="Texture2D" uid="uid://cg08lqpym4f8o" path="res://Assets/template-spritesheet-front.png" id="1_mcikd"]
+[ext_resource type="Texture2D" uid="uid://cfelsc1ekognp" path="res://Assets/template-spritesheet-rear.png" id="1_nse1r"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hsfxt"]
+atlas = ExtResource("1_nse1r")
+region = Rect2(8, 649, 139, 161)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4lmyl"]
+atlas = ExtResource("1_nse1r")
+region = Rect2(147, 649, 139, 161)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3u1c2"]
+atlas = ExtResource("1_nse1r")
+region = Rect2(286, 649, 139, 161)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j8160"]
+atlas = ExtResource("1_nse1r")
+region = Rect2(425, 649, 139, 161)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mcikd"]
+atlas = ExtResource("1_mcikd")
+region = Rect2(9, 651, 139, 162)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nse1r"]
+atlas = ExtResource("1_mcikd")
+region = Rect2(148, 651, 139, 162)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cgiur"]
+atlas = ExtResource("1_mcikd")
+region = Rect2(287, 651, 139, 162)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jp407"]
+atlas = ExtResource("1_mcikd")
+region = Rect2(426, 651, 139, 162)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_mv58x"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hsfxt")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4lmyl")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3u1c2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_j8160")
+}],
+"loop": 1,
+"name": &"move_ne",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mcikd")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nse1r")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cgiur")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jp407")
+}],
+"loop": 1,
+"name": &"move_se",
+"speed": 5.0
+}]
+
+[node name="Collector" type="Node2D" unique_id=1599135953]
+script = ExtResource("1_cgiur")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1711100925]
+position = Vector2(-4.7683716e-07, 0)
+scale = Vector2(0.21133094, 0.19953416)
+sprite_frames = SubResource("SpriteFrames_mv58x")
+animation = &"move_ne"

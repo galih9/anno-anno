@@ -27,6 +27,11 @@
 
 extends Node
 
+# ─── Signals ──────────────────────────────────────────────────────────────────
+
+signal building_selected(building: Node2D, data: BuildingData)
+signal building_deselected()
+
 # ─── Exports ──────────────────────────────────────────────────────────────────
 
 ## All building types available in this scene.
@@ -48,6 +53,9 @@ var _building_container: Node2D
 var _build_mode: bool       = false
 var _hovered_cell: Vector2i = Vector2i.ZERO
 var _placement_valid: bool  = false
+
+var _selected_building: Node2D = null
+var _selection_highlight: SelectionHighlight = null
 
 ## The root BuildingData selected by the player (from buildings[]).
 ## Never changes until the player presses a building_N key.
@@ -90,6 +98,12 @@ func _setup() -> void:
 	_building_container.y_sort_enabled = true
 	get_parent().add_child(_building_container)
 
+	# ── Create Selection Highlight ───────────────────────────────────────────
+	_selection_highlight = SelectionHighlight.new()
+	_selection_highlight.name = "SelectionHighlight"
+	get_parent().add_child(_selection_highlight)
+	_selection_highlight.setup(_land_layer)
+
 	# ── Wire up helpers ──────────────────────────────────────────────────────
 	connection_checker.registry = registry
 	preview.setup(get_parent())
@@ -123,17 +137,29 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not _build_mode:
-		return
-	if event is InputEventMouseButton:
-		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-			_try_place_building()
-	elif event is InputEventMouseMotion:
-		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-			if _current_data != null and _current_data.is_connector:
-				_update_hover()
+	if _build_mode:
+		if event is InputEventMouseButton:
+			var mb := event as InputEventMouseButton
+			if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
 				_try_place_building()
+		elif event is InputEventMouseMotion:
+			if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+				if _current_data != null and _current_data.is_connector:
+					_update_hover()
+					_try_place_building()
+	else:
+		if event is InputEventMouseButton:
+			var mb := event as InputEventMouseButton
+			if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+				var world_mouse: Vector2 = _land_layer.get_global_mouse_position()
+				var local_mouse: Vector2 = _land_layer.to_local(world_mouse)
+				var cell: Vector2i = _land_layer.local_to_map(local_mouse)
+				var building: Node2D = registry.get_building_at(cell)
+				if building != null:
+					select_building(building)
+					get_viewport().set_input_as_handled()
+				else:
+					deselect_building()
 
 # ─── Input handlers ───────────────────────────────────────────────────────────
 
@@ -141,7 +167,14 @@ func _handle_build_toggle() -> void:
 	if not Input.is_action_just_pressed("toggle_build"):
 		return
 	_build_mode = !_build_mode
-	preview.set_visible(_build_mode)
+	if _build_mode:
+		deselect_building()
+		if _current_data == null and buildings.size() > 0:
+			_select_building(0)
+		else:
+			preview.set_visible(true)
+	else:
+		preview.set_visible(false)
 	print("PlacementManager ▸ build mode: %s" % ("ON" if _build_mode else "OFF"))
 
 
@@ -160,6 +193,7 @@ func _select_building(index: int) -> void:
 
 ## Public API to start placing a specific BuildingData (called by UI)
 func start_placement(data: BuildingData) -> void:
+	deselect_building()
 	_base_data      = data
 	_current_data   = data
 	_rotation_index = -1
@@ -168,6 +202,38 @@ func start_placement(data: BuildingData) -> void:
 	preview.set_building(_current_data)
 	preview.set_rotation_deg(0.0)
 	print("PlacementManager ▸ selected: %s" % _current_data.display_name)
+
+# ─── Selection Public API ──────────────────────────────────────────────────────
+
+func select_building(building: Node2D) -> void:
+	if building == null:
+		deselect_building()
+		return
+	_selected_building = building
+	var cells: Array[Vector2i] = registry.get_cells_of(building)
+	var data: BuildingData = null
+	if building.has_meta("data"):
+		var meta = building.get_meta("data")
+		if meta is BuildingData: data = meta
+	if data == null and "data" in building and building.data is BuildingData:
+		data = building.data
+
+	_selection_highlight.set_target(building, cells)
+	building_selected.emit(building, data)
+	print("PlacementManager ▸ selected building: %s" % (data.display_name if data else building.name))
+
+
+func deselect_building() -> void:
+	if _selected_building != null:
+		_selected_building = null
+		if _selection_highlight != null:
+			_selection_highlight.clear()
+		building_deselected.emit()
+		print("PlacementManager ▸ building deselected")
+
+
+func get_selected_building() -> Node2D:
+	return _selected_building
 
 
 ## Cycle to the next rotation variant for the current building.
@@ -196,6 +262,11 @@ func _update_hover() -> void:
 	var world_mouse: Vector2 = _land_layer.get_global_mouse_position()
 	var local_mouse: Vector2 = _land_layer.to_local(world_mouse)
 	_hovered_cell = _land_layer.local_to_map(local_mouse)
+
+	if _current_data == null:
+		preview.set_visible(false)
+		_placement_valid = false
+		return
 
 	var footprint: Array[Vector2i] = _current_data.get_footprint(_hovered_cell)
 	_placement_valid = _is_footprint_placeable(footprint)
@@ -306,6 +377,10 @@ func _try_place_ricefield() -> void:
 			# Store field BuildingData in metadata so ConnectionChecker can identify it.
 			if _current_data.field_building_data != null:
 				field_node.set_meta("data", _current_data.field_building_data)
+
+			# Bind field ownership to main building
+			if "owner_building" in field_node:
+				field_node.owner_building = building
 
 			_building_container.add_child(field_node)
 			field_node.global_position = _land_layer.to_global(_land_layer.map_to_local(field_cell))
