@@ -1,6 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://b6h512skqrjwf"]
+[gd_scene format=3 uid="uid://b6h512skqrjwf"]
 
-[ext_resource type="Script" path="res://Scenes/Resource/LumberJack/lumberjack.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://wngdmcqw2fvk" path="res://Scenes/Resource/LumberJack/lumberjack.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://kts1r1105k88" path="res://Assets/ricefield_main.png" id="1_uckdy"]
 
 [node name="Lumberjack" type="Node2D" unique_id=449080216]

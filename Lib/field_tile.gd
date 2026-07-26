@@ -27,7 +27,6 @@ var is_worked_on: bool = false:
 @onready var sprite: Sprite2D = $Sprite2D if has_node("Sprite2D") else null
 
 func _ready() -> void:
-	z_index = 1
 	_update_visuals()
 
 func _process(_delta: float) -> void:

@@ -2,12 +2,12 @@
 # Attach to a Node named "PlacementManager" inside Main.tscn.
 #
 # ── Responsibilities ───────────────────────────────────────────────────────────
-#   • Handle keyboard/mouse input for build mode, building selection, and rotation
+#   • Handle keyboard/mouse input for build mode, building selection, rotation, and demolition
 #   • Resolve the LandLayer reference and create the BuildingContainer
 #   • Delegate each concern to its dedicated helper:
 #       BuildingRegistry   → occupied-cell tracking
 #       ConnectionChecker  → BFS path connectivity + cosmetic effects
-#       PreviewHandler     → ghost sprite
+#       PreviewHandler     → ghost sprite / demolish highlight
 #
 # ── Setup ──────────────────────────────────────────────────────────────────────
 #   1. Add a Node to Main as a child, name it "PlacementManager"
@@ -31,6 +31,7 @@ extends Node
 
 signal building_selected(building: Node2D, data: BuildingData)
 signal building_deselected()
+signal demolish_mode_changed(enabled: bool)
 
 # ─── Exports ──────────────────────────────────────────────────────────────────
 
@@ -50,9 +51,11 @@ signal building_deselected()
 var _land_layer: TileMapLayer
 var _building_container: Node2D
 
-var _build_mode: bool       = false
-var _hovered_cell: Vector2i = Vector2i.ZERO
-var _placement_valid: bool  = false
+var _build_mode: bool           = false
+var _demolish_mode: bool        = false
+var _is_drag_demolishing: bool  = false
+var _hovered_cell: Vector2i     = Vector2i.ZERO
+var _placement_valid: bool      = false
 
 var _selected_building: Node2D = null
 var _selection_highlight: SelectionHighlight = null
@@ -95,6 +98,7 @@ func _setup() -> void:
 	# ── Create BuildingContainer ─────────────────────────────────────────────
 	_building_container = Node2D.new()
 	_building_container.name = "BuildingContainer"
+	_building_container.z_index = 1
 	_building_container.y_sort_enabled = true
 	get_parent().add_child(_building_container)
 
@@ -129,15 +133,35 @@ func _process(_delta: float) -> void:
 	_handle_build_toggle()
 	_handle_building_selection()
 
-	if not _build_mode:
+	if not _build_mode and not _demolish_mode:
 		return
 
-	_handle_rotation()
+	if _build_mode:
+		_handle_rotation()
+
 	_update_hover()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _build_mode:
+	if _demolish_mode:
+		if event is InputEventMouseButton:
+			var mb := event as InputEventMouseButton
+			if mb.button_index == MOUSE_BUTTON_LEFT:
+				if mb.pressed:
+					_is_drag_demolishing = true
+					_try_demolish_at_cell(_hovered_cell, false)
+					get_viewport().set_input_as_handled()
+				else:
+					_is_drag_demolishing = false
+					get_viewport().set_input_as_handled()
+			elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+				exit_demolish_mode()
+				get_viewport().set_input_as_handled()
+		elif event is InputEventMouseMotion:
+			_update_hover()
+			if _is_drag_demolishing or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+				_try_demolish_at_cell(_hovered_cell, true)
+	elif _build_mode:
 		if event is InputEventMouseButton:
 			var mb := event as InputEventMouseButton
 			if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
@@ -161,10 +185,77 @@ func _unhandled_input(event: InputEvent) -> void:
 				else:
 					deselect_building()
 
+# ─── Demolish Mode API ─────────────────────────────────────────────────────────
+
+func start_demolish_mode() -> void:
+	if _demolish_mode:
+		return
+	deselect_building()
+	_demolish_mode = true
+	_build_mode = false
+	_base_data = null
+	_current_data = null
+	preview.set_demolish_mode(true)
+	preview.set_preview_visible(true)
+	_update_hover()
+	demolish_mode_changed.emit(true)
+	print("PlacementManager ▸ Demolish mode ON")
+
+
+func exit_demolish_mode() -> void:
+	if not _demolish_mode:
+		return
+	_demolish_mode = false
+	_is_drag_demolishing = false
+	preview.set_demolish_mode(false)
+	preview.set_preview_visible(false)
+	demolish_mode_changed.emit(false)
+	print("PlacementManager ▸ Demolish mode OFF")
+
+
+func is_demolish_mode() -> bool:
+	return _demolish_mode
+
+
+func _try_demolish_at_cell(cell: Vector2i, is_drag: bool) -> void:
+	var building: Node2D = registry.get_building_at(cell)
+	if building == null or not is_instance_valid(building):
+		return
+
+	if is_drag:
+		# Drag demolish mode: ONLY demolish pathways (connectors). Regular buildings are excluded!
+		if _is_pathway(building):
+			remove_building(building)
+			_update_hover()
+	else:
+		# Single click demolish mode: Demolish ANY building or pathway in one click!
+		remove_building(building)
+		_update_hover()
+
+
+func _is_pathway(building: Node2D) -> bool:
+	if building == null or not is_instance_valid(building):
+		return false
+	var data: BuildingData = null
+	if building.has_meta("data"):
+		var meta = building.get_meta("data")
+		if meta is BuildingData:
+			data = meta as BuildingData
+	if data == null:
+		var prop = building.get("data")
+		if prop is BuildingData:
+			data = prop as BuildingData
+	if data != null:
+		return data.is_connector or data.building_type == BuildingData.BuildingType.CONNECTOR
+	return false
+
 # ─── Input handlers ───────────────────────────────────────────────────────────
 
 func _handle_build_toggle() -> void:
 	if not Input.is_action_just_pressed("toggle_build"):
+		return
+	if _demolish_mode:
+		exit_demolish_mode()
 		return
 	_build_mode = !_build_mode
 	if _build_mode:
@@ -172,9 +263,9 @@ func _handle_build_toggle() -> void:
 		if _current_data == null and buildings.size() > 0:
 			_select_building(0)
 		else:
-			preview.set_visible(true)
+			preview.set_preview_visible(true)
 	else:
-		preview.set_visible(false)
+		preview.set_preview_visible(false)
 	print("PlacementManager ▸ build mode: %s" % ("ON" if _build_mode else "OFF"))
 
 
@@ -193,12 +284,15 @@ func _select_building(index: int) -> void:
 
 ## Public API to start placing a specific BuildingData (called by UI)
 func start_placement(data: BuildingData) -> void:
+	if _demolish_mode:
+		exit_demolish_mode()
 	deselect_building()
 	_base_data      = data
 	_current_data   = data
 	_rotation_index = -1
 	_build_mode = true
-	preview.set_visible(true)
+	preview.set_demolish_mode(false)
+	preview.set_preview_visible(true)
 	preview.set_building(_current_data)
 	preview.set_rotation_deg(0.0)
 	print("PlacementManager ▸ selected: %s" % _current_data.display_name)
@@ -208,6 +302,8 @@ func start_placement(data: BuildingData) -> void:
 func select_building(building: Node2D) -> void:
 	if building == null:
 		deselect_building()
+		return
+	if _demolish_mode:
 		return
 	_selected_building = building
 	var cells: Array[Vector2i] = registry.get_cells_of(building)
@@ -236,17 +332,11 @@ func get_selected_building() -> Node2D:
 	return _selected_building
 
 
-## Cycle to the next rotation variant for the current building.
-## If the building has no rotation_variants, pressing R does nothing.
-##
-## Cycle order: base (-1) → variant[0] → variant[1] → … → base (-1) → …
 func _handle_rotation() -> void:
 	if not Input.is_action_just_pressed("rotate"):
 		return
 	if _base_data == null or not _base_data.can_rotate():
 		return
-	# Shift _rotation_index from [-1..N-1] into [0..N], step, mod back to [0..N],
-	# then shift back to [-1..N-1].
 	var variant_count: int = _base_data.rotation_variants.size()
 	_rotation_index = ((_rotation_index + 1 + 1) % (variant_count + 1)) - 1
 	if _rotation_index < 0:
@@ -263,17 +353,28 @@ func _update_hover() -> void:
 	var local_mouse: Vector2 = _land_layer.to_local(world_mouse)
 	_hovered_cell = _land_layer.local_to_map(local_mouse)
 
+	var snapped_world: Vector2 = _land_layer.to_global(_land_layer.map_to_local(_hovered_cell))
+	preview.update_position(snapped_world)
+
+	if _demolish_mode:
+		var target_building: Node2D = registry.get_building_at(_hovered_cell)
+		if target_building != null and is_instance_valid(target_building):
+			var cells: Array[Vector2i] = registry.get_cells_of(target_building)
+			preview.set_demolish_highlight(cells, _land_layer)
+		else:
+			preview.set_demolish_highlight([_hovered_cell], _land_layer)
+		preview.set_preview_visible(true)
+		return
+
 	if _current_data == null:
-		preview.set_visible(false)
+		preview.set_preview_visible(false)
 		_placement_valid = false
 		return
 
 	var footprint: Array[Vector2i] = _current_data.get_footprint(_hovered_cell)
 	_placement_valid = _is_footprint_placeable(footprint)
 
-	var snapped_world: Vector2 = _land_layer.to_global(_land_layer.map_to_local(_hovered_cell))
-	preview.update_position(snapped_world)
-	preview.set_visible(true)
+	preview.set_preview_visible(true)
 	preview.set_valid(_placement_valid)
 
 # ─── Placement ────────────────────────────────────────────────────────────────
@@ -285,7 +386,6 @@ func _try_place_building() -> void:
 		push_warning("PlacementManager: BuildingData '%s' has no scene assigned." % _current_data.display_name)
 		return
 
-	# Ricefield has its own placement flow (main + surrounding field tiles).
 	if _current_data.is_ricefield:
 		_try_place_ricefield()
 		return
@@ -296,9 +396,7 @@ func _try_place_building() -> void:
 		push_error("PlacementManager: Scene root must extend Node2D.")
 		return
 
-	# Attach the BuildingData reference so registry and checkers can read it.
 	building.set_meta("data", _current_data)
-	# Also expose via property if the building script declares a `data` var.
 	if "data" in building:
 		building.data = _current_data
 
@@ -319,8 +417,9 @@ func _try_place_building() -> void:
 	print("PlacementManager ▸ placed '%s' at %s  footprint: %s" % [
 		_current_data.display_name, _hovered_cell, footprint
 	])
-	
+
 	_handle_post_placement()
+
 
 func _handle_post_placement() -> void:
 	if _current_data == null:
@@ -328,16 +427,12 @@ func _handle_post_placement() -> void:
 	var type = _current_data.building_type
 	if type != BuildingData.BuildingType.CONNECTOR and type != BuildingData.BuildingType.RESIDENT and type != BuildingData.BuildingType.COSMETIC:
 		_build_mode = false
-		preview.set_visible(false)
+		preview.set_preview_visible(false)
 		_base_data = null
 		_current_data = null
 
 
-## Place the main Ricefield building at the hovered cell, then stamp RicefieldField
-## tiles on every surrounding cell that is empty and on valid Land terrain.
-## Fields that would overlap an existing building are silently skipped.
 func _try_place_ricefield() -> void:
-	# ── Place main building ───────────────────────────────────────────────────
 	var building: Node2D = _current_data.scene.instantiate() as Node2D
 	if building == null:
 		push_error("PlacementManager: Ricefield scene root must extend Node2D.")
@@ -350,22 +445,18 @@ func _try_place_ricefield() -> void:
 	_building_container.add_child(building)
 	building.global_position = _land_layer.to_global(_land_layer.map_to_local(_hovered_cell))
 
-	# A ricefield's main cell might land on another ricefield's field — displace it.
 	_displace_fields_in_footprint([_hovered_cell])
 	var main_cells: Array[Vector2i] = [_hovered_cell]
 	registry.register(main_cells, building)
 
-	# ── Stamp surrounding field tiles ─────────────────────────────────────────
 	var fields_placed: int = 0
 	if _current_data.field_scene != null:
 		for offset: Vector2i in _current_data.field_footprint_offsets:
 			var field_cell: Vector2i = _hovered_cell + offset
 
-			# Skip occupied cells — fields never overwrite existing buildings.
 			if registry.is_occupied(field_cell):
 				continue
 
-			# Fields must be on valid Land terrain, same rule as any other building.
 			var tile_data: TileData = _land_layer.get_cell_tile_data(field_cell)
 			if tile_data == null or tile_data.terrain != 0:
 				continue
@@ -374,11 +465,9 @@ func _try_place_ricefield() -> void:
 			if field_node == null:
 				continue
 
-			# Store field BuildingData in metadata so ConnectionChecker can identify it.
 			if _current_data.field_building_data != null:
 				field_node.set_meta("data", _current_data.field_building_data)
 
-			# Bind field ownership to main building
 			if "owner_building" in field_node:
 				field_node.owner_building = building
 
@@ -390,7 +479,7 @@ func _try_place_ricefield() -> void:
 			fields_placed += 1
 
 	connection_checker.update_all_connections()
-	
+
 	var main_node = get_parent()
 	if "gold" in main_node:
 		main_node.gold -= _current_data.cost
@@ -399,7 +488,7 @@ func _try_place_ricefield() -> void:
 	print("PlacementManager ▸ placed 'Ricefield' at %s with %d field(s) stamped" % [
 		_hovered_cell, fields_placed
 	])
-	
+
 	_handle_post_placement()
 
 # ─── Placement validation ─────────────────────────────────────────────────────
@@ -411,22 +500,17 @@ func _is_footprint_placeable(footprint: Array[Vector2i]) -> bool:
 			return false
 		if _current_data.id == "house" and "log" in main_node and main_node.log < 10:
 			return false
-			
+
 	for cell in footprint:
 		if registry.is_occupied(cell):
-			# Ricefield field tiles act as soft obstacles — any new building may
-			# displace them, so treat them as empty for validation purposes.
 			if not _is_ricefield_field(registry.get_building_at(cell)):
 				return false
 		var tile_data: TileData = _land_layer.get_cell_tile_data(cell)
-		# terrain 0 = "Land" in terrain_set 0 (see land_tile.tres)
 		if tile_data == null or tile_data.terrain != 0:
 			return false
 	return true
 
 
-## Returns true if [param node] is a RicefieldField tile, identified by its
-## BuildingData id.  Reads metadata first (scriptless scenes), then property.
 func _is_ricefield_field(node: Node2D) -> bool:
 	if node == null:
 		return false
@@ -442,9 +526,6 @@ func _is_ricefield_field(node: Node2D) -> bool:
 	return data != null and data.id == "ricefield_field"
 
 
-## Remove every RicefieldField tile occupying any cell in [param cells].
-## Call this before registering a new building so field nodes are freed cleanly
-## and ConnectionChecker's subsequent field count stays accurate.
 func _displace_fields_in_footprint(cells: Array[Vector2i]) -> void:
 	for cell in cells:
 		if not registry.is_occupied(cell):
@@ -457,17 +538,24 @@ func _displace_fields_in_footprint(cells: Array[Vector2i]) -> void:
 
 ## Remove [param building] from the scene and free all its tiles.
 func remove_building(building: Node2D) -> void:
+	if building == null or not is_instance_valid(building):
+		return
+
+	# Also remove dependent nodes (such as field tiles owned by this building)
+	var all_buildings = registry.get_all_buildings()
+	for b in all_buildings:
+		if is_instance_valid(b) and "owner_building" in b and b.owner_building == building:
+			registry.unregister(b)
+
 	var freed: Array[Vector2i] = registry.unregister(building)
 	connection_checker.update_all_connections()
 	print("PlacementManager ▸ removed building, freed %d tile(s)." % freed.size())
 
 
-## Returns true if [param cell] is occupied.
 func is_tile_occupied(cell: Vector2i) -> bool:
 	return registry.is_occupied(cell)
 
 
-## Returns the building at [param cell], or null.
 func get_building_at(cell: Vector2i) -> Node2D:
 	return registry.get_building_at(cell)
 
@@ -489,9 +577,10 @@ func _find_land_layer() -> TileMapLayer:
 
 func _print_help() -> void:
 	print("─── PlacementManager controls ───")
-	print("  E   → toggle build mode")
+	print("  E   → toggle build / exit demolish mode")
 	for i in buildings.size():
 		print("  %d   → select %s" % [i + 1, buildings[i].display_name])
 	print("  R   → cycle rotation variant (if building supports it)")
-	print("  LMB → place selected building (in build mode)")
+	print("  LMB → place selected building (in build mode) / demolish (in demolish mode)")
+	print("  RMB → cancel / exit demolish mode")
 	print("────────────────────────────────")

@@ -83,14 +83,8 @@ func _dispatch_collector(resource_building: Node2D, path_cells: Array[Vector2i])
 	collector_node.setup(self, resource_building, world_points)
 	active_collectors.append(collector_node)
 
-## Called by a Collector NPC when it completes its return leg to the Restaurant.
-func on_collector_returned(collector: Node2D, resource_type: String, amount: int) -> void:
-	if active_collectors.has(collector):
-		active_collectors.erase(collector)
-
-	_cleanup_active_collectors()
-
-	# Deposit resources directly into global player inventory
+## Deposit resources directly into global player inventory.
+func deposit_resource(resource_type: String, amount: int) -> void:
 	if amount > 0:
 		var main_node = _get_main_node()
 		if main_node != null:
@@ -98,7 +92,18 @@ func on_collector_returned(collector: Node2D, resource_type: String, amount: int
 				main_node.food += amount
 			elif resource_type == "log" and "log" in main_node:
 				main_node.log += amount
-			print("Restaurant ▸ Collected %d %s into global inventory." % [amount, resource_type])
+			print("Restaurant ▸ Deposited %d %s into global inventory." % [amount, resource_type])
+
+## Called by a Collector NPC when it completes its return leg to the Restaurant.
+func on_collector_returned(collector: Node2D, resource_type: String, amount: int) -> void:
+	if active_collectors.has(collector):
+		active_collectors.erase(collector)
+
+	_cleanup_active_collectors()
+
+	# Deposit any remaining resources directly into global inventory
+	if amount > 0:
+		deposit_resource(resource_type, amount)
 
 	# Service the next item in the collection queue
 	_process_queue()

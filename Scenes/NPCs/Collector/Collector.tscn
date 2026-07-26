@@ -73,6 +73,11 @@ animations = [{
 "speed": 5.0
 }]
 
+[sub_resource type="LabelSettings" id="LabelSettings_cltrf"]
+font_size = 9
+outline_size = 3
+outline_color = Color(0, 0, 0, 1)
+
 [node name="Collector" type="Node2D" unique_id=1599135953]
 script = ExtResource("1_cgiur")
 
@@ -81,3 +86,13 @@ position = Vector2(-4.7683716e-07, 0)
 scale = Vector2(0.21133094, 0.19953416)
 sprite_frames = SubResource("SpriteFrames_mv58x")
 animation = &"move_ne"
+
+[node name="StatusLabel" type="Label" parent="." unique_id=987654321]
+z_index = 10
+offset_left = -40.0
+offset_top = -26.0
+offset_right = 40.0
+offset_bottom = -10.0
+horizontal_alignment = 1
+vertical_alignment = 2
+label_settings = SubResource("LabelSettings_cltrf")

@@ -12,7 +12,7 @@ var log: int = 50:
 		log = value
 		_update_ui()
 
-var gold: int = 500:
+var gold: int = 55500:
 	set(value):
 		gold = value
 		_update_ui()

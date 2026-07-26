@@ -12,6 +12,7 @@ var pop_label: Label
 var always_visible_gold_label: Label
 
 var build_panel: PanelContainer
+var demolish_banner: PanelContainer
 
 # Building info modal UI
 var building_modal: PanelContainer
@@ -36,6 +37,7 @@ func _ready() -> void:
 	
 	_setup_info_panel()
 	_setup_building_modal()
+	_setup_demolish_banner()
 	# Defer setup of build panel so PlacementManager has time to setup if needed
 	call_deferred("_setup_build_panel")
 	call_deferred("_connect_placement_manager")
@@ -59,6 +61,53 @@ func _connect_placement_manager() -> void:
 			pm.building_selected.connect(_on_building_selected)
 		if pm.has_signal("building_deselected"):
 			pm.building_deselected.connect(_on_building_deselected)
+		if pm.has_signal("demolish_mode_changed"):
+			pm.demolish_mode_changed.connect(_on_demolish_mode_changed)
+
+func _setup_demolish_banner() -> void:
+	demolish_banner = PanelContainer.new()
+	demolish_banner.visible = false
+	demolish_banner.z_index = 120
+	
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.18, 0.05, 0.05, 0.9)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.9, 0.25, 0.25, 0.95)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 16
+	style.content_margin_top = 8
+	style.content_margin_right = 16
+	style.content_margin_bottom = 8
+	demolish_banner.add_theme_stylebox_override("panel", style)
+	
+	var lbl = Label.new()
+	lbl.text = "🔨 DEMOLISH MODE  |  Click: demolish building  |  Hold & Drag: demolish pathways  |  ESC / RMB: exit"
+	var banner_font = LabelSettings.new()
+	banner_font.font = font
+	banner_font.font_size = 12
+	banner_font.font_color = Color(1.0, 0.4, 0.4)
+	lbl.label_settings = banner_font
+	demolish_banner.add_child(lbl)
+	
+	add_child(demolish_banner)
+	
+	# Center top position
+	demolish_banner.anchor_left = 0.5
+	demolish_banner.anchor_right = 0.5
+	demolish_banner.anchor_top = 0.0
+	demolish_banner.anchor_bottom = 0.0
+	demolish_banner.offset_top = 20
+	demolish_banner.grow_horizontal = Control.GROW_DIRECTION_BOTH
+
+func _on_demolish_mode_changed(enabled: bool) -> void:
+	if demolish_banner != null:
+		demolish_banner.visible = enabled
 
 func _setup_building_modal() -> void:
 	building_modal = PanelContainer.new()
@@ -265,6 +314,28 @@ func _setup_build_panel() -> void:
 	
 	var pm = get_parent().get_node_or_null("PlacementManager")
 	if not pm: return
+	
+	# Prominent Demolish Mode button at top of Build Menu
+	var demolish_btn = Button.new()
+	demolish_btn.text = "🔨 Demolish Mode"
+	demolish_btn.add_theme_font_override("font", font)
+	var btn_style = StyleBoxFlat.new()
+	btn_style.bg_color = Color(0.65, 0.15, 0.15, 0.9)
+	btn_style.corner_radius_top_left = 4
+	btn_style.corner_radius_top_right = 4
+	btn_style.corner_radius_bottom_left = 4
+	btn_style.corner_radius_bottom_right = 4
+	btn_style.content_margin_left = 8
+	btn_style.content_margin_right = 8
+	btn_style.content_margin_top = 6
+	btn_style.content_margin_bottom = 6
+	demolish_btn.add_theme_stylebox_override("normal", btn_style)
+	demolish_btn.pressed.connect(func():
+		if pm and pm.has_method("start_demolish_mode"):
+			pm.start_demolish_mode()
+		build_panel.visible = false
+	)
+	vbox.add_child(demolish_btn)
 	
 	var categories = {}
 	for b in pm.buildings:

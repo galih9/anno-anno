@@ -14,8 +14,8 @@ enum Status { ACTIVE, INACTIVE, DISCONNECTED }
 
 @export_group("Resource Settings")
 @export var ticks_to_seed: int = 1
-@export var ticks_to_grow: int = 3
-@export var ticks_to_harvest: int = 2
+@export var ticks_to_grow: int = 5
+@export var ticks_to_harvest: int = 1
 @export var resource_per_harvest: int = 5
 
 # ─── State ────────────────────────────────────────────────────────────────────
@@ -162,12 +162,19 @@ func check_trigger_collection() -> void:
 				time_since_dispatch = 0.0
 				break
 
-func collect_resources() -> int:
-	var collected = storage
-	storage = 0
-	is_collection_pending = false
-	time_since_dispatch = 0.0
-	return collected
+func collect_resources(amount_requested: int = -1) -> int:
+	if amount_requested <= 0 or amount_requested >= storage:
+		var collected = storage
+		storage = 0
+		is_collection_pending = false
+		time_since_dispatch = 0.0
+		return collected
+	else:
+		storage -= amount_requested
+		if storage == 0:
+			is_collection_pending = false
+			time_since_dispatch = 0.0
+		return amount_requested
 
 # ─── Public API ───────────────────────────────────────────────────────────────
 
