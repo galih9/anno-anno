@@ -26,7 +26,10 @@ enum Level  { PEASANT }
 const ABANDON_TIME: float      = 30.0
 const ABANDON_THRESHOLD: float = 0.4
 
-const POPULATION_CAPACITY: int = 4
+var has_restaurant_bonus: bool = false
+
+func get_population_capacity() -> int:
+	return 6 if has_restaurant_bonus else 4
 
 ## Base happiness when connected to a destination via path.
 const HAPPINESS_CONNECTED: float    = 0.5
@@ -98,6 +101,12 @@ func reset_happiness_bonus() -> void:
 func apply_happiness_bonus(amount: float) -> void:
 	_bench_bonus += amount
 	_recalculate_happiness()
+
+func reset_restaurant_bonus() -> void:
+	has_restaurant_bonus = false
+
+func apply_restaurant_bonus() -> void:
+	has_restaurant_bonus = true
 
 # ─── Private helpers ──────────────────────────────────────────────────────────
 

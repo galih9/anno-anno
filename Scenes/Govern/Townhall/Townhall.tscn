@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://dl16vwhkyojn4"]
+
+[ext_resource type="Script" uid="uid://dlrnlhn27dvhh" path="res://Scenes/Govern/Townhall/townhall.gd" id="1_3u4xm"]
+[ext_resource type="Texture2D" uid="uid://dibpbkw40yvut" path="res://Assets/anno_tile_placeholder.png" id="1_kapd0"]
+
+[node name="Townhall" type="Node2D" unique_id=568687110]
+script = ExtResource("1_3u4xm")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=324504125]
+position = Vector2(0, -24)
+texture = ExtResource("1_kapd0")

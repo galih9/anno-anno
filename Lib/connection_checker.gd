@@ -92,6 +92,10 @@ func check_building_connection(building: Node2D) -> Dictionary:
 	if frontier.is_empty():
 		return { "status": "Disconnected", "desc": "no path adjacent" }
 
+	# If this building IS the destination, touching a path is enough.
+	if _get_data(building).is_destination:
+		return { "status": "Connected", "desc": "active" }
+
 	# ── Step 2: BFS through the connector network ───────────────────────────
 	var visited: Dictionary = {}
 	var queue: Array[Node2D] = []
@@ -139,10 +143,12 @@ func check_building_connection(building: Node2D) -> Dictionary:
 ## "Within radius" uses Chebyshev distance (max of |Δx|, |Δy|), covering all
 ## 8 directions uniformly and cheaply.
 func update_cosmetic_effects() -> void:
-	# ── Reset all bench bonuses ───────────────────────────────────────────────
+	# ── Reset all bench and restaurant bonuses ───────────────────────────────────────────────
 	for building in registry.get_buildings_with_type(BuildingData.BuildingType.RESIDENT):
 		if building.has_method("reset_happiness_bonus"):
 			building.reset_happiness_bonus()
+		if building.has_method("reset_restaurant_bonus"):
+			building.reset_restaurant_bonus()
 
 	# ── Apply bonuses from every cosmetic building ───────────────────────────
 	var cosmetic_buildings: Array[Node2D] = registry.get_buildings_with_type(
@@ -160,6 +166,23 @@ func update_cosmetic_effects() -> void:
 			if _is_within_radius(c_cells, r_cells, c_data.influence_radius):
 				if resident.has_method("apply_happiness_bonus"):
 					resident.apply_happiness_bonus(0.25)
+
+	# ── Apply bonuses from every public service building (Restaurant) ─────────
+	var service_buildings: Array[Node2D] = registry.get_buildings_with_type(
+		BuildingData.BuildingType.PUBLIC_SERVICE
+	)
+	for service in service_buildings:
+		var s_data: BuildingData = _get_data(service)
+		if s_data == null or s_data.influence_radius <= 0:
+			continue
+
+		var s_cells: Array[Vector2i] = registry.get_cells_of(service)
+
+		for resident in registry.get_buildings_with_type(BuildingData.BuildingType.RESIDENT):
+			var r_cells: Array[Vector2i] = registry.get_cells_of(resident)
+			if _is_within_radius(s_cells, r_cells, s_data.influence_radius):
+				if resident.has_method("apply_restaurant_bonus"):
+					resident.apply_restaurant_bonus()
 
 
 ## Returns true if any cell in [param target_cells] is within [param radius]

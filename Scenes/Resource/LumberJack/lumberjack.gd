@@ -154,8 +154,8 @@ func check_trigger_collection() -> void:
 	var registry = placement_manager.get_node_or_null("BuildingRegistry")
 	if not registry:
 		return
-	var restaurants = registry.get_buildings_by_id("restaurant")
-	for rest in restaurants:
+	var destinations = registry.get_buildings_with_flag(&"is_destination")
+	for rest in destinations:
 		if rest.has_method("request_collection"):
 			if rest.request_collection(self):
 				is_collection_pending = true

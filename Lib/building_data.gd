@@ -18,6 +18,7 @@ enum BuildingType {
 	RESOURCE,       # Ricefield — earns resources when active
 	PUBLIC_SERVICE, # Restaurant — destination / heart of the city
 	COSMETIC,       # Bench   — influence radius, no path required
+	GOVERNMENT,     # Townhall — destination / heart of the city
 }
 
 # ─── Identity ─────────────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@
 [ext_resource type="Resource" uid="uid://cwbench0data1" path="res://Scenes/Cosmetic/Bench/bench_data.tres" id="10_upxo3"]
 [ext_resource type="Script" uid="uid://cve38c5tgl1xl" path="res://Lib/connection_checker.gd" id="11_y3ia3"]
 [ext_resource type="Script" uid="uid://b0t3vrsvbc60" path="res://Lib/preview_handler.gd" id="12_kxqao"]
+[ext_resource type="Resource" uid="uid://t0wnhall1d" path="res://Scenes/Govern/Townhall/townhall_data.tres" id="13_twnhl"]
 
 [node name="Main" type="Node2D" unique_id=961107469]
 y_sort_enabled = true
@@ -28,7 +29,7 @@ tile_set = ExtResource("3_wep2q")
 
 [node name="PlacementManager" type="Node" parent="." unique_id=785599526]
 script = ExtResource("3_krmlx")
-buildings = Array[ExtResource("5_2yf5i")]([ExtResource("6_5nxb0"), ExtResource("7_2yf5i"), ExtResource("8_rpwkb"), ExtResource("9_kxqao"), ExtResource("10_upxo3")])
+buildings = Array[ExtResource("5_2yf5i")]([ExtResource("6_5nxb0"), ExtResource("7_2yf5i"), ExtResource("8_rpwkb"), ExtResource("9_kxqao"), ExtResource("10_upxo3"), ExtResource("13_twnhl")])
 
 [node name="BuildingRegistry" type="Node" parent="PlacementManager" unique_id=1048434042]
 script = ExtResource("10_7004b")

@@ -57,7 +57,7 @@ func _on_resource_tick() -> void:
 	var residents = registry.get_buildings_with_type(BuildingData.BuildingType.RESIDENT)
 	for house in residents:
 		if "status" in house and house.status == 0: # ACTIVE
-			var cap = house.POPULATION_CAPACITY if "POPULATION_CAPACITY" in house else 4
+			var cap = house.get_population_capacity() if house.has_method("get_population_capacity") else 4
 			current_population += cap
 			gen_gold += 2 # Gold generation per house
 			
