@@ -8,7 +8,7 @@
 
 extends Node2D
 
-enum Status { ACTIVE, INACTIVE, DISCONNECTED }
+enum Status { ACTIVE, INACTIVE, DISCONNECTED, HALTED }
 
 # ─── Settings ─────────────────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ func _ready() -> void:
 	pass
 
 func _process(delta: float) -> void:
-	if status == Status.ACTIVE and is_user_active:
+	if (status == Status.ACTIVE or status == Status.HALTED) and is_user_active:
 		time_since_dispatch += delta
 		if not is_collection_pending:
 			if storage >= 10 or (time_since_dispatch >= 60.0 and storage > 0):
@@ -138,11 +138,39 @@ func toggle_user_active() -> void:
 		_clear_worker_work()
 
 func add_produced_resource(amount: int) -> void:
-	if status == Status.ACTIVE and is_user_active:
+	if (status == Status.ACTIVE or status == Status.HALTED) and is_user_active:
+		var old_storage = storage
 		storage = min(max_storage, storage + amount)
+		var actual_added = storage - old_storage
+		
+		if actual_added > 0:
+			_show_floating_text("+%d %s" % [actual_added, resource_type])
+			
+		if storage >= max_storage and status == Status.ACTIVE:
+			status = Status.HALTED
+			_clear_worker_work()
+			
 		if not is_collection_pending:
 			if storage >= 10 or (time_since_dispatch >= 60.0 and storage > 0):
 				check_trigger_collection()
+
+func _show_floating_text(text: String) -> void:
+	var label = Label.new()
+	label.text = text
+	label.add_theme_color_override("font_color", Color(0.2, 1.0, 0.2))
+	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_font_override("font", ThemeDB.fallback_font)
+	label.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	
+	# Center it somewhat above the building
+	label.position = Vector2(-20, -40)
+	label.z_index = 100
+	add_child(label)
+	
+	var tween = create_tween()
+	tween.tween_property(label, "position", label.position + Vector2(0, -30), 1.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(label, "modulate:a", 0.0, 1.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tween.tween_callback(label.queue_free)
 
 func check_trigger_collection() -> void:
 	var tree = get_tree()
@@ -163,18 +191,23 @@ func check_trigger_collection() -> void:
 				break
 
 func collect_resources(amount_requested: int = -1) -> int:
+	var collected = 0
 	if amount_requested <= 0 or amount_requested >= storage:
-		var collected = storage
+		collected = storage
 		storage = 0
 		is_collection_pending = false
 		time_since_dispatch = 0.0
-		return collected
 	else:
 		storage -= amount_requested
+		collected = amount_requested
 		if storage == 0:
 			is_collection_pending = false
 			time_since_dispatch = 0.0
-		return amount_requested
+			
+	if status == Status.HALTED and storage < max_storage:
+		status = Status.ACTIVE
+		
+	return collected
 
 # ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -212,7 +245,10 @@ func get_info_text() -> String:
 
 func set_status(status_text: String, desc_text: String) -> void:
 	if status_text == "Connected":
-		status = Status.ACTIVE
+		if storage >= max_storage:
+			status = Status.HALTED
+		else:
+			status = Status.ACTIVE
 	else:
 		if "no path" in desc_text:
 			status = Status.DISCONNECTED

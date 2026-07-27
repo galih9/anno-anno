@@ -59,6 +59,7 @@ var _placement_valid: bool      = false
 
 var _selected_building: Node2D = null
 var _selection_highlight: SelectionHighlight = null
+var _influence_overlay: InfluenceHighlightOverlay = null
 
 ## The root BuildingData selected by the player (from buildings[]).
 ## Never changes until the player presses a building_N key.
@@ -110,6 +111,11 @@ func _setup() -> void:
 	_selection_highlight.name = "SelectionHighlight"
 	get_parent().add_child(_selection_highlight)
 	_selection_highlight.setup(_land_layer)
+
+	# ── Create Influence Overlay ─────────────────────────────────────────────
+	_influence_overlay = InfluenceHighlightOverlay.new()
+	_influence_overlay.name = "InfluenceHighlightOverlay"
+	get_parent().add_child(_influence_overlay)
 
 	# ── Wire up helpers ──────────────────────────────────────────────────────
 	connection_checker.registry = registry
@@ -200,6 +206,8 @@ func start_demolish_mode() -> void:
 	_current_data = null
 	preview.set_demolish_mode(true)
 	preview.set_preview_visible(true)
+	if _influence_overlay != null:
+		_influence_overlay.deactivate()
 	_update_hover()
 	demolish_mode_changed.emit(true)
 	print("PlacementManager ▸ Demolish mode ON")
@@ -269,6 +277,8 @@ func _handle_build_toggle() -> void:
 			preview.set_preview_visible(true)
 	else:
 		preview.set_preview_visible(false)
+		if _influence_overlay != null:
+			_influence_overlay.deactivate()
 	print("PlacementManager ▸ build mode: %s" % ("ON" if _build_mode else "OFF"))
 
 
@@ -321,6 +331,12 @@ func select_building(building: Node2D) -> void:
 		data = building.data
 
 	_selection_highlight.set_target(building, cells)
+	
+	if data != null:
+		_influence_overlay.set_target(cells, data.influence_radius, _land_layer)
+	else:
+		_influence_overlay.set_target(cells, 0, _land_layer)
+
 	building_selected.emit(building, data)
 	print("PlacementManager ▸ selected building: %s" % (data.display_name if data else building.name))
 
@@ -330,6 +346,8 @@ func deselect_building() -> void:
 		_selected_building = null
 		if _selection_highlight != null:
 			_selection_highlight.clear()
+		if _influence_overlay != null:
+			_influence_overlay.deactivate()
 		building_deselected.emit()
 		print("PlacementManager ▸ building deselected")
 
@@ -376,6 +394,8 @@ func _update_hover() -> void:
 	if _current_data == null:
 		preview.set_preview_visible(false)
 		_placement_valid = false
+		if _influence_overlay != null:
+			_influence_overlay.deactivate()
 		return
 
 	var footprint: Array[Vector2i] = _current_data.get_footprint(_hovered_cell)
@@ -383,6 +403,8 @@ func _update_hover() -> void:
 
 	preview.set_preview_visible(true)
 	preview.set_valid(_placement_valid)
+	if _influence_overlay != null:
+		_influence_overlay.set_target(footprint, _current_data.influence_radius, _land_layer)
 
 # ─── Placement ────────────────────────────────────────────────────────────────
 
@@ -435,6 +457,8 @@ func _handle_post_placement() -> void:
 	if type != BuildingData.BuildingType.CONNECTOR and type != BuildingData.BuildingType.RESIDENT and type != BuildingData.BuildingType.COSMETIC:
 		_build_mode = false
 		preview.set_preview_visible(false)
+		if _influence_overlay != null:
+			_influence_overlay.deactivate()
 		_base_data = null
 		_current_data = null
 

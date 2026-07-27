@@ -27,7 +27,7 @@ func setup(scene_parent: Node) -> void:
 	_sprite = Sprite2D.new()
 	_sprite.name     = "PreviewSprite"
 	_sprite.modulate = COLOR_VALID
-	_sprite.z_index  = 2
+	_sprite.z_index  = 3
 	_sprite.visible  = false
 	scene_parent.add_child(_sprite)
 
