@@ -76,9 +76,10 @@ func process_tick() -> void:
 				active_worker_field = null
 		elif active_worker_field.status == FieldTile.Status.HARVESTING:
 			if active_worker_field.work_ticks >= ticks_to_harvest:
-				add_produced_resource(resource_per_harvest)
-				active_worker_field.reset_to_empty()
+				var field = active_worker_field
 				active_worker_field = null
+				field.reset_to_empty()
+				add_produced_resource(resource_per_harvest)
 
 	# Step 3: Assign worker to next task if free
 	if active_worker_field == null:
@@ -123,9 +124,10 @@ func process_tick() -> void:
 				active_worker_field.is_worked_on = false
 				active_worker_field = null
 			elif active_worker_field.status == FieldTile.Status.HARVESTING and active_worker_field.work_ticks >= ticks_to_harvest:
-				add_produced_resource(resource_per_harvest)
-				active_worker_field.reset_to_empty()
+				var field = active_worker_field
 				active_worker_field = null
+				field.reset_to_empty()
+				add_produced_resource(resource_per_harvest)
 
 func _clear_worker_work() -> void:
 	if is_instance_valid(active_worker_field):
