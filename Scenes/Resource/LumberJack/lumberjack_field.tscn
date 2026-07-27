@@ -1,11 +1,11 @@
-[gd_scene load_steps=3 format=3 uid="uid://cl783rjbpcqgf"]
+[gd_scene format=3 uid="uid://cl783rjbpcqgf"]
 
-[ext_resource type="Script" path="res://Lib/field_tile.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://sogoxl634n30" path="res://Lib/field_tile.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://bs76ny3apmub6" path="res://Assets/field.png" id="2_field"]
 
-[node name="LumberjackField" type="Node2D"]
+[node name="LumberjackField" type="Node2D" unique_id=1776697495]
 z_index = -1
 script = ExtResource("1_script")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1086598746]
 texture = ExtResource("2_field")

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="BuildingData" format=3 uid="uid://t0wnhall1d"]
+[gd_resource type="Resource" script_class="BuildingData" format=3]
 
 [ext_resource type="Script" uid="uid://qcvlj6htmkm1" path="res://Lib/building_data.gd" id="1_buildingdata"]
 [ext_resource type="PackedScene" uid="uid://dl16vwhkyojn4" path="res://Scenes/Govern/Townhall/Townhall.tscn" id="2_utu5h"]

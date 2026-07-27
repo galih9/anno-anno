@@ -42,9 +42,9 @@ signal demolish_mode_changed(enabled: bool)
 
 # ─── Child node references ────────────────────────────────────────────────────
 
-@onready var registry: BuildingRegistry            = $BuildingRegistry
-@onready var connection_checker: ConnectionChecker = $ConnectionChecker
-@onready var preview: PreviewHandler               = $PreviewHandler
+@onready var registry: Node            = $BuildingRegistry
+@onready var connection_checker: Node = $ConnectionChecker
+@onready var preview: Node               = $PreviewHandler
 
 # ─── Internal state ───────────────────────────────────────────────────────────
 
@@ -85,6 +85,9 @@ const ACTION_TO_INDEX: Array[String] = [
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
+	print("PlacementManager _ready")
+	print("$BuildingRegistry is: ", $BuildingRegistry)
+	print("registry variable is: ", registry)
 	call_deferred("_setup")
 
 
@@ -284,6 +287,9 @@ func _select_building(index: int) -> void:
 
 ## Public API to start placing a specific BuildingData (called by UI)
 func start_placement(data: BuildingData) -> void:
+	if data == null:
+		push_warning("PlacementManager: Cannot place null BuildingData.")
+		return
 	if _demolish_mode:
 		exit_demolish_mode()
 	deselect_building()
@@ -362,7 +368,8 @@ func _update_hover() -> void:
 			var cells: Array[Vector2i] = registry.get_cells_of(target_building)
 			preview.set_demolish_highlight(cells, _land_layer)
 		else:
-			preview.set_demolish_highlight([_hovered_cell], _land_layer)
+			var single_cell: Array[Vector2i] = [_hovered_cell]
+			preview.set_demolish_highlight(single_cell, _land_layer)
 		preview.set_preview_visible(true)
 		return
 
@@ -579,7 +586,10 @@ func _print_help() -> void:
 	print("─── PlacementManager controls ───")
 	print("  E   → toggle build / exit demolish mode")
 	for i in buildings.size():
-		print("  %d   → select %s" % [i + 1, buildings[i].display_name])
+		if buildings[i] != null:
+			print("  %d   → select %s" % [i + 1, buildings[i].display_name])
+		else:
+			print("  %d   → select [null building data]" % [i + 1])
 	print("  R   → cycle rotation variant (if building supports it)")
 	print("  LMB → place selected building (in build mode) / demolish (in demolish mode)")
 	print("  RMB → cancel / exit demolish mode")

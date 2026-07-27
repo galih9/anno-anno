@@ -15,7 +15,7 @@ extends Node
 # ─── Dependencies ─────────────────────────────────────────────────────────────
 
 ## Assigned by PlacementManager after both nodes exist.
-var registry: BuildingRegistry
+var registry: Node
 
 # ─── Adjacency ────────────────────────────────────────────────────────────────
 
@@ -63,7 +63,7 @@ func update_all_connections() -> void:
 
 	# ── Step 1: path-based connection check ──────────────────────────────────
 	for building in registry.get_buildings_with_flag(&"needs_connection"):
-		var data := _get_data(building)
+		var data = _get_data(building)
 		var result: Dictionary
 		# Ricefields need a combined path + field-count check.
 		if data != null and data.is_ricefield:
@@ -290,7 +290,7 @@ func find_path(from_building: Node2D, to_building: Node2D) -> Array[Vector2i]:
 	for c in end_cells:
 		end_cell_set[c] = true
 
-	var initial_connectors := _get_adjacent_connectors(start_cells, from_building, occupied)
+	var initial_connectors: Array[Node2D] = _get_adjacent_connectors(start_cells, from_building, occupied)
 	if initial_connectors.is_empty():
 		return []
 
@@ -299,7 +299,7 @@ func find_path(from_building: Node2D, to_building: Node2D) -> Array[Vector2i]:
 	var parent: Dictionary = {}
 
 	for connector in initial_connectors:
-		var c_cells := registry.get_cells_of(connector)
+		var c_cells = registry.get_cells_of(connector)
 		for cell in c_cells:
 			if not visited.has(cell):
 				visited[cell] = true
@@ -346,4 +346,3 @@ func find_path(from_building: Node2D, to_building: Node2D) -> Array[Vector2i]:
 			break
 	path.reverse()
 	return path
-

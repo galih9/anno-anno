@@ -339,6 +339,8 @@ func _setup_build_panel() -> void:
 	
 	var categories = {}
 	for b in pm.buildings:
+		if b == null:
+			continue
 		var type_name = BuildingData.BuildingType.keys()[b.building_type]
 		if not categories.has(type_name):
 			categories[type_name] = []
