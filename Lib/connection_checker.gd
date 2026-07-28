@@ -143,12 +143,20 @@ func check_building_connection(building: Node2D) -> Dictionary:
 ## "Within radius" uses Chebyshev distance (max of |Δx|, |Δy|), covering all
 ## 8 directions uniformly and cheaply.
 func update_cosmetic_effects() -> void:
-	# ── Reset all bench and restaurant bonuses ───────────────────────────────────────────────
+	# ── Fetch global tax modifier ─────────────────────────────────────────────
+	var main_node = _get_main_node()
+	var tax_mod: float = 0.0
+	if main_node != null and "tax_rate" in main_node:
+		tax_mod = (100 - main_node.tax_rate) * 0.005
+
+	# ── Reset all bench and restaurant bonuses & apply tax modifier ───────────
 	for building in registry.get_buildings_with_type(BuildingData.BuildingType.RESIDENT):
 		if building.has_method("reset_happiness_bonus"):
 			building.reset_happiness_bonus()
 		if building.has_method("reset_restaurant_bonus"):
 			building.reset_restaurant_bonus()
+		if building.has_method("set_tax_modifier"):
+			building.set_tax_modifier(tax_mod)
 
 	# ── Apply bonuses from every cosmetic building ───────────────────────────
 	var cosmetic_buildings: Array[Node2D] = registry.get_buildings_with_type(
@@ -183,6 +191,13 @@ func update_cosmetic_effects() -> void:
 			if _is_within_radius(s_cells, r_cells, s_data.influence_radius):
 				if resident.has_method("apply_restaurant_bonus"):
 					resident.apply_restaurant_bonus()
+
+func _get_main_node() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.find_child("Main", true, false)
+
 
 
 ## Returns true if any cell in [param target_cells] is within [param radius]

@@ -49,6 +49,7 @@ var level:     Level  = Level.PEASANT
 
 var _base_happiness: float      = HAPPINESS_DISCONNECTED
 var _bench_bonus:    float      = 0.0
+var tax_modifier:    float      = 0.0
 var _low_happiness_timer: float = 0.0
 
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -60,12 +61,15 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	# Tick the abandonment timer only when happiness is critically low and the
 	# house is not already abandoned.
-	if happiness < ABANDON_THRESHOLD and status != Status.ABANDONED:
-		_low_happiness_timer += delta
-		if _low_happiness_timer >= ABANDON_TIME:
-			status = Status.ABANDONED
+	if happiness < ABANDON_THRESHOLD:
+		if status != Status.ABANDONED:
+			_low_happiness_timer += delta
+			if _low_happiness_timer >= ABANDON_TIME:
+				status = Status.ABANDONED
 	else:
-		# Reset timer as soon as happiness recovers or house is already abandoned.
+		# If happiness recovers to >= 40% while house was abandoned, residents move back!
+		if status == Status.ABANDONED:
+			status = Status.ACTIVE if _base_happiness == HAPPINESS_CONNECTED else Status.DISCONNECTED
 		_low_happiness_timer = 0.0
 
 # ─── Public API ───────────────────────────────────────────────────────────────
@@ -78,14 +82,13 @@ func get_info_text() -> String:
 ## Called by ConnectionChecker after every BFS pass.
 ## Drives the base happiness level from connection state.
 func set_status(status_text: String, _desc: String) -> void:
-	if status == Status.ABANDONED:
-		# Abandoned houses ignore status updates — they stay abandoned.
-		return
 	if status_text == "Connected":
-		status = Status.ACTIVE
+		if status != Status.ABANDONED or happiness >= ABANDON_THRESHOLD:
+			status = Status.ACTIVE
 		_base_happiness = HAPPINESS_CONNECTED
 	else:
-		status = Status.DISCONNECTED
+		if status != Status.ABANDONED or happiness >= ABANDON_THRESHOLD:
+			status = Status.DISCONNECTED
 		_base_happiness = HAPPINESS_DISCONNECTED
 	_recalculate_happiness()
 
@@ -102,6 +105,10 @@ func apply_happiness_bonus(amount: float) -> void:
 	_bench_bonus += amount
 	_recalculate_happiness()
 
+func set_tax_modifier(amount: float) -> void:
+	tax_modifier = amount
+	_recalculate_happiness()
+
 func reset_restaurant_bonus() -> void:
 	has_restaurant_bonus = false
 
@@ -111,4 +118,5 @@ func apply_restaurant_bonus() -> void:
 # ─── Private helpers ──────────────────────────────────────────────────────────
 
 func _recalculate_happiness() -> void:
-	happiness = clamp(_base_happiness + _bench_bonus, 0.0, 1.0)
+	happiness = clamp(_base_happiness + _bench_bonus + tax_modifier, 0.0, 1.0)
+

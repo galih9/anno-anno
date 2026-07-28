@@ -3,11 +3,25 @@ extends CanvasLayer
 var font = preload("res://Assets/Silkscreen-Regular.ttf")
 var font_settings = LabelSettings.new()
 
+# UI labels & panels
+var hud_status_panel: PanelContainer
+var hud_status_label: Label
+
 var info_panel: PanelContainer
-var gold_label: Label
-var food_label: Label
-var log_label: Label
-var pop_label: Label
+var info_gold_label: Label
+var info_income_label: Label
+var info_pop_label: Label
+var info_happiness_label: Label
+var info_housing_label: Label
+
+var info_storage_food_label: Label
+var info_storage_log_label: Label
+var info_storage_gold_label: Label
+
+var tax_rate_label: Label
+var tax_desc_label: Label
+var tax_minus_btn: Button
+var tax_plus_btn: Button
 
 var always_visible_gold_label: Label
 
@@ -21,23 +35,30 @@ var modal_category_label: Label
 var modal_info_label: Label
 var modal_toggle_active_btn: Button
 var modal_demolish_btn: Button
+var modal_open_town_info_btn: Button
 
 var _selected_building_ref: Node2D = null
 var _selected_building_data: BuildingData = null
 
+# Cached UI state
+var _curr_gold: int = 0
+var _curr_food: int = 0
+var _curr_log: int = 0
+var _curr_pop: int = 0
+var _curr_income: int = 0
+var _curr_happiness: float = 1.0
+var _curr_tax: int = 100
+
 func _ready() -> void:
 	font_settings.font = font
-	font_settings.font_size = 16
+	font_settings.font_size = 14
 	
-	# Standalone gold label
-	always_visible_gold_label = Label.new()
-	always_visible_gold_label.position = Vector2(20, 20)
-	always_visible_gold_label.label_settings = font_settings
-	add_child(always_visible_gold_label)
-	
+	_setup_hud_status_bar()
 	_setup_info_panel()
 	_setup_building_modal()
 	_setup_demolish_banner()
+	_setup_hud_buttons()
+	
 	# Defer setup of build panel so PlacementManager has time to setup if needed
 	call_deferred("_setup_build_panel")
 	call_deferred("_connect_placement_manager")
@@ -63,6 +84,37 @@ func _connect_placement_manager() -> void:
 			pm.building_deselected.connect(_on_building_deselected)
 		if pm.has_signal("demolish_mode_changed"):
 			pm.demolish_mode_changed.connect(_on_demolish_mode_changed)
+
+func _setup_hud_status_bar() -> void:
+	hud_status_panel = PanelContainer.new()
+	hud_status_panel.position = Vector2(20, 20)
+	hud_status_panel.z_index = 90
+	add_child(hud_status_panel)
+	
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.08, 0.11, 0.16, 0.9)
+	panel_style.border_width_left = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.2, 0.7, 0.9, 0.6)
+	panel_style.corner_radius_top_left = 8
+	panel_style.corner_radius_top_right = 8
+	panel_style.corner_radius_bottom_left = 8
+	panel_style.corner_radius_bottom_right = 8
+	panel_style.content_margin_left = 14
+	panel_style.content_margin_top = 8
+	panel_style.content_margin_right = 14
+	panel_style.content_margin_bottom = 8
+	hud_status_panel.add_theme_stylebox_override("panel", panel_style)
+	
+	hud_status_label = Label.new()
+	hud_status_label.label_settings = font_settings
+	hud_status_label.text = "Gold: 0 (+0)   Population: 0"
+	hud_status_panel.add_child(hud_status_label)
+	
+	# Compatibility alias
+	always_visible_gold_label = hud_status_label
 
 func _setup_demolish_banner() -> void:
 	demolish_banner = PanelContainer.new()
@@ -185,6 +237,16 @@ func _setup_building_modal() -> void:
 	modal_info_label.label_settings = info_settings
 	main_vbox.add_child(modal_info_label)
 
+	# Town Info trigger for Townhall
+	modal_open_town_info_btn = Button.new()
+	modal_open_town_info_btn.text = "🏛️ Manage Town Policy"
+	modal_open_town_info_btn.visible = false
+	modal_open_town_info_btn.add_theme_font_override("font", font)
+	modal_open_town_info_btn.pressed.connect(func():
+		toggle_info_panel(true)
+	)
+	main_vbox.add_child(modal_open_town_info_btn)
+
 	# Action buttons row
 	var actions_hbox = HBoxContainer.new()
 	actions_hbox.add_theme_constant_override("separation", 8)
@@ -232,13 +294,20 @@ func _update_modal_content() -> void:
 	if _selected_building_ref == null or not is_instance_valid(_selected_building_ref):
 		return
 
+	var is_townhall: bool = false
 	if _selected_building_data != null:
 		modal_title_label.text = _selected_building_data.display_name
 		var type_name = BuildingData.BuildingType.keys()[_selected_building_data.building_type].capitalize()
 		modal_category_label.text = "[ %s ]" % type_name
+		if _selected_building_data.id == "townhall":
+			is_townhall = true
 	else:
 		modal_title_label.text = _selected_building_ref.name
 		modal_category_label.text = ""
+		if _selected_building_ref.name.begins_with("Townhall"):
+			is_townhall = true
+
+	modal_open_town_info_btn.visible = is_townhall
 
 	if _selected_building_ref.has_method("get_info_text"):
 		modal_info_label.text = _selected_building_ref.get_info_text()
@@ -266,46 +335,211 @@ func _update_modal_position() -> void:
 func _setup_info_panel() -> void:
 	info_panel = PanelContainer.new()
 	info_panel.visible = false
-	info_panel.position = Vector2(20, 50)
+	info_panel.z_index = 110
+	
+	# Centered overlay panel layout
+	info_panel.anchor_left = 0.5
+	info_panel.anchor_top = 0.5
+	info_panel.anchor_right = 0.5
+	info_panel.anchor_bottom = 0.5
+	info_panel.offset_left = -240
+	info_panel.offset_top = -270
+	info_panel.offset_right = 240
+	info_panel.offset_bottom = 270
+	info_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	info_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.07, 0.1, 0.15, 0.95)
+	panel_style.border_width_left = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.3, 0.85, 1.0, 0.85)
+	panel_style.corner_radius_top_left = 12
+	panel_style.corner_radius_top_right = 12
+	panel_style.corner_radius_bottom_left = 12
+	panel_style.corner_radius_bottom_right = 12
+	panel_style.content_margin_left = 18
+	panel_style.content_margin_top = 16
+	panel_style.content_margin_right = 18
+	panel_style.content_margin_bottom = 16
+	info_panel.add_theme_stylebox_override("panel", panel_style)
+	
 	add_child(info_panel)
 	
-	var vbox = VBoxContainer.new()
-	info_panel.add_child(vbox)
+	var main_vbox = VBoxContainer.new()
+	main_vbox.add_theme_constant_override("separation", 8)
+	info_panel.add_child(main_vbox)
+	
+	# Header Row
+	var header_hbox = HBoxContainer.new()
+	main_vbox.add_child(header_hbox)
+	
+	var title_vbox = VBoxContainer.new()
+	title_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_hbox.add_child(title_vbox)
 	
 	var title = Label.new()
-	title.text = "Town Info"
-	title.label_settings = font_settings
-	vbox.add_child(title)
+	title.text = "🏛️ TOWN MANAGEMENT"
+	var t_set = LabelSettings.new()
+	t_set.font = font
+	t_set.font_size = 15
+	t_set.font_color = Color(0.3, 0.9, 1.0)
+	title.label_settings = t_set
+	title_vbox.add_child(title)
 	
-	gold_label = Label.new()
-	gold_label.label_settings = font_settings
-	vbox.add_child(gold_label)
+	var sub = Label.new()
+	sub.text = "City Overview, Storage & Policy"
+	var s_set = LabelSettings.new()
+	s_set.font = font
+	s_set.font_size = 10
+	s_set.font_color = Color(0.65, 0.75, 0.85)
+	sub.label_settings = s_set
+	title_vbox.add_child(sub)
 	
-	food_label = Label.new()
-	food_label.label_settings = font_settings
-	vbox.add_child(food_label)
+	var close_btn = Button.new()
+	close_btn.text = " X "
+	close_btn.add_theme_font_override("font", font)
+	close_btn.pressed.connect(func():
+		info_panel.visible = false
+	)
+	header_hbox.add_child(close_btn)
 	
-	log_label = Label.new()
-	log_label.label_settings = font_settings
-	_setup_hud_build_button()
+	main_vbox.add_child(HSeparator.new())
+	
+	# Stats Section
+	var stats_title = Label.new()
+	stats_title.text = "── CITY STATISTICS ──"
+	var st_set = LabelSettings.new()
+	st_set.font = font
+	st_set.font_size = 11
+	st_set.font_color = Color(1.0, 0.8, 0.4)
+	stats_title.label_settings = st_set
+	main_vbox.add_child(stats_title)
+	
+	var stats_vbox = VBoxContainer.new()
+	stats_vbox.add_theme_constant_override("separation", 5)
+	main_vbox.add_child(stats_vbox)
+	
+	info_gold_label = Label.new()
+	info_gold_label.label_settings = font_settings
+	stats_vbox.add_child(info_gold_label)
+	
+	info_income_label = Label.new()
+	info_income_label.label_settings = font_settings
+	stats_vbox.add_child(info_income_label)
+	
+	info_pop_label = Label.new()
+	info_pop_label.label_settings = font_settings
+	stats_vbox.add_child(info_pop_label)
+	
+	info_happiness_label = Label.new()
+	info_happiness_label.label_settings = font_settings
+	stats_vbox.add_child(info_happiness_label)
+	
+	info_housing_label = Label.new()
+	info_housing_label.label_settings = font_settings
+	stats_vbox.add_child(info_housing_label)
+	
+	main_vbox.add_child(HSeparator.new())
+	
+	# Storage / Item Info Section
+	var storage_header = Label.new()
+	storage_header.text = "── ITEM STORAGE ──"
+	storage_header.label_settings = st_set
+	main_vbox.add_child(storage_header)
+	
+	var storage_vbox = VBoxContainer.new()
+	storage_vbox.add_theme_constant_override("separation", 5)
+	main_vbox.add_child(storage_vbox)
+	
+	info_storage_food_label = Label.new()
+	info_storage_food_label.label_settings = font_settings
+	storage_vbox.add_child(info_storage_food_label)
+	
+	info_storage_log_label = Label.new()
+	info_storage_log_label.label_settings = font_settings
+	storage_vbox.add_child(info_storage_log_label)
+	
+	info_storage_gold_label = Label.new()
+	info_storage_gold_label.label_settings = font_settings
+	storage_vbox.add_child(info_storage_gold_label)
+	
+	main_vbox.add_child(HSeparator.new())
+	
+	# Tax Section
+	var tax_header = Label.new()
+	tax_header.text = "── TAXATION POLICY ──"
+	tax_header.label_settings = st_set
+	main_vbox.add_child(tax_header)
+	
+	var tax_hbox = HBoxContainer.new()
+	tax_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	tax_hbox.add_theme_constant_override("separation", 12)
+	main_vbox.add_child(tax_hbox)
+	
+	tax_minus_btn = Button.new()
+	tax_minus_btn.text = "  -  "
+	tax_minus_btn.add_theme_font_override("font", font)
+	tax_minus_btn.pressed.connect(func():
+		_adjust_tax(-10)
+	)
+	tax_hbox.add_child(tax_minus_btn)
+	
+	tax_rate_label = Label.new()
+	tax_rate_label.text = "Tax Rate: 100%"
+	tax_rate_label.label_settings = font_settings
+	tax_hbox.add_child(tax_rate_label)
+	
+	tax_plus_btn = Button.new()
+	tax_plus_btn.text = "  +  "
+	tax_plus_btn.add_theme_font_override("font", font)
+	tax_plus_btn.pressed.connect(func():
+		_adjust_tax(+10)
+	)
+	tax_hbox.add_child(tax_plus_btn)
+	
+	tax_desc_label = Label.new()
+	var desc_set = LabelSettings.new()
+	desc_set.font = font
+	desc_set.font_size = 10
+	desc_set.font_color = Color(0.8, 0.85, 0.9)
+	desc_set.line_spacing = 2
+	tax_desc_label.label_settings = desc_set
+	tax_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	main_vbox.add_child(tax_desc_label)
 
+func _adjust_tax(delta_rate: int) -> void:
+	var main = get_parent()
+	if main and main.has_method("set_tax_rate"):
+		main.set_tax_rate(main.tax_rate + delta_rate)
 
-func _setup_hud_build_button() -> void:
-	var hud_btn = Button.new()
-	hud_btn.text = "🔨 BUILD MENU"
-	hud_btn.add_theme_font_override("font", font)
-	hud_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+func toggle_info_panel(force_show: bool = false) -> void:
+	if force_show:
+		info_panel.visible = true
+	else:
+		info_panel.visible = not info_panel.visible
+	if info_panel.visible:
+		_refresh_info_panel_ui()
+
+func _setup_hud_buttons() -> void:
+	# Town Info button
+	var info_btn = Button.new()
+	info_btn.text = "🏛️ TOWN INFO"
+	info_btn.add_theme_font_override("font", font)
+	info_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	
-	hud_btn.anchor_left = 1.0
-	hud_btn.anchor_top = 1.0
-	hud_btn.anchor_right = 1.0
-	hud_btn.anchor_bottom = 1.0
-	hud_btn.offset_left = -160
-	hud_btn.offset_top = -50
-	hud_btn.offset_right = -20
-	hud_btn.offset_bottom = -15
-	hud_btn.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	hud_btn.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	info_btn.anchor_left = 1.0
+	info_btn.anchor_top = 1.0
+	info_btn.anchor_right = 1.0
+	info_btn.anchor_bottom = 1.0
+	info_btn.offset_left = -320
+	info_btn.offset_top = -50
+	info_btn.offset_right = -170
+	info_btn.offset_bottom = -15
+	info_btn.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	info_btn.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	
 	var style_norm = StyleBoxFlat.new()
 	style_norm.bg_color = Color(0.1, 0.14, 0.2, 0.9)
@@ -318,12 +552,38 @@ func _setup_hud_build_button() -> void:
 	style_norm.corner_radius_top_right = 8
 	style_norm.corner_radius_bottom_left = 8
 	style_norm.corner_radius_bottom_right = 8
-	style_norm.content_margin_left = 10
-	style_norm.content_margin_right = 10
+	style_norm.content_margin_left = 8
+	style_norm.content_margin_right = 8
 	
 	var style_hover = style_norm.duplicate() as StyleBoxFlat
 	style_hover.bg_color = Color(0.15, 0.22, 0.3, 0.95)
 	style_hover.border_color = Color(0.4, 0.85, 1.0, 1.0)
+	
+	info_btn.add_theme_stylebox_override("normal", style_norm)
+	info_btn.add_theme_stylebox_override("hover", style_hover)
+	info_btn.add_theme_stylebox_override("pressed", style_hover)
+	
+	info_btn.pressed.connect(func():
+		toggle_info_panel()
+	)
+	add_child(info_btn)
+
+	# Build Menu button
+	var hud_btn = Button.new()
+	hud_btn.text = "🔨 BUILD MENU"
+	hud_btn.add_theme_font_override("font", font)
+	hud_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	hud_btn.anchor_left = 1.0
+	hud_btn.anchor_top = 1.0
+	hud_btn.anchor_right = 1.0
+	hud_btn.anchor_bottom = 1.0
+	hud_btn.offset_left = -155
+	hud_btn.offset_top = -50
+	hud_btn.offset_right = -15
+	hud_btn.offset_bottom = -15
+	hud_btn.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	hud_btn.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	
 	hud_btn.add_theme_stylebox_override("normal", style_norm)
 	hud_btn.add_theme_stylebox_override("hover", style_hover)
@@ -594,16 +854,89 @@ func toggle_build_menu(force_state: int = -1) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("info_btn"):
-		info_panel.visible = !info_panel.visible
+		toggle_info_panel()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("build_btn"):
 		toggle_build_menu()
 		get_viewport().set_input_as_handled()
 
 
-func _on_resources_updated(gold: int, food: int, log: int, population: int) -> void:
-	if always_visible_gold_label: always_visible_gold_label.text = "Gold: " + str(gold)
-	if gold_label: gold_label.text = "Gold: " + str(gold)
-	if food_label: food_label.text = "Food: " + str(food)
-	if log_label: log_label.text = "Lumber: " + str(log)
-	if pop_label: pop_label.text = "Population: " + str(population)
+func _on_resources_updated(gold: int, food: int, log: int, population: int, monthly_income: int = 0, avg_happiness: float = 1.0, tax_rate: int = 100) -> void:
+	_curr_gold = gold
+	_curr_food = food
+	_curr_log = log
+	_curr_pop = population
+	_curr_income = monthly_income
+	_curr_happiness = avg_happiness
+	_curr_tax = tax_rate
+
+	# Gameplay View HUD format: Gold: 50000 (+50) Population: 125
+	var sign_str = ("+" if monthly_income >= 0 else "") + str(monthly_income)
+	if hud_status_label:
+		hud_status_label.text = "Gold: %d (%s)   Population: %d" % [gold, sign_str, population]
+
+	_refresh_info_panel_ui()
+
+func _refresh_info_panel_ui() -> void:
+	if info_panel == null or not info_panel.visible:
+		return
+
+	var main = get_parent()
+	var act_houses = main.active_houses_count if "active_houses_count" in main else 0
+	var ab_houses = main.abandoned_houses_count if "abandoned_houses_count" in main else 0
+
+	# Query pending uncollected items in production buildings
+	var pending_food: int = 0
+	var pending_log: int = 0
+	var pm = main.get_node_or_null("PlacementManager")
+	if pm and pm.has_node("BuildingRegistry"):
+		var reg = pm.get_node("BuildingRegistry")
+		var res_buildings = reg.get_buildings_with_type(BuildingData.BuildingType.RESOURCE)
+		for b in res_buildings:
+			if is_instance_valid(b):
+				if "resource_type" in b and "produced_resource" in b:
+					if b.resource_type == "food":
+						pending_food += b.produced_resource
+					elif b.resource_type == "log":
+						pending_log += b.produced_resource
+
+	var sign_str = ("+" if _curr_income >= 0 else "") + str(_curr_income)
+	if info_gold_label:
+		info_gold_label.text = "💰 Treasury: %d Gold" % _curr_gold
+	if info_income_label:
+		info_income_label.text = "📈 Monthly Income: %s Gold / mo" % sign_str
+	if info_pop_label:
+		info_pop_label.text = "👥 Total Population: %d" % _curr_pop
+
+	if info_happiness_label:
+		var hap_pct = int(round(_curr_happiness * 100.0))
+		info_happiness_label.text = "😊 Happiness: %d%%" % hap_pct
+
+	if info_housing_label:
+		info_housing_label.text = "🏠 Houses: %d Active / %d Abandoned" % [act_houses, ab_houses]
+
+	# Item storage breakdown
+	if info_storage_food_label:
+		info_storage_food_label.text = "🌾 Food Crops: %d units  (Uncollected: %d)" % [_curr_food, pending_food]
+	if info_storage_log_label:
+		info_storage_log_label.text = "🪵 Lumber (Log): %d units  (Uncollected: %d)" % [_curr_log, pending_log]
+	if info_storage_gold_label:
+		info_storage_gold_label.text = "💰 Gold Treasury: %d Gold" % _curr_gold
+
+	if tax_rate_label:
+		var tax_title = "Normal"
+		if _curr_tax > 150: tax_title = "Very High"
+		elif _curr_tax > 100: tax_title = "High"
+		elif _curr_tax < 50: tax_title = "Very Low"
+		elif _curr_tax < 100: tax_title = "Low"
+		tax_rate_label.text = "Tax Rate: %d%% (%s)" % [_curr_tax, tax_title]
+
+	if tax_desc_label:
+		if _curr_tax == 100:
+			tax_desc_label.text = "Neutral Tax: Standard gold revenue per house. Normal happiness."
+		elif _curr_tax > 100:
+			var pen = int(round((_curr_tax - 100) * 0.5))
+			tax_desc_label.text = "Higher Tax (+%d%% revenue): Apply -%d%% happiness penalty! Long-term low happiness (<40%%) causes abandonment." % [_curr_tax - 100, pen]
+		else:
+			var bon = int(round((100 - _curr_tax) * 0.5))
+			tax_desc_label.text = "Lower Tax (-%d%% revenue): Boosts citizen happiness by +%d%%!" % [100 - _curr_tax, bon]
