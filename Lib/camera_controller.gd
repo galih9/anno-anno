@@ -51,12 +51,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.pressed:
-			if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
-				_target_zoom = clamp(_target_zoom + zoom_step, min_zoom, max_zoom)
-				get_viewport().set_input_as_handled()
-			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-				_target_zoom = clamp(_target_zoom - zoom_step, min_zoom, max_zoom)
-				get_viewport().set_input_as_handled()
+			if mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				if get_viewport().gui_get_hovered_control() != null:
+					return
+				if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+					_target_zoom = clamp(_target_zoom + zoom_step, min_zoom, max_zoom)
+					get_viewport().set_input_as_handled()
+				elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+					_target_zoom = clamp(_target_zoom - zoom_step, min_zoom, max_zoom)
+					get_viewport().set_input_as_handled()
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 

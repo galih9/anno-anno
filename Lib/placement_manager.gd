@@ -129,8 +129,7 @@ func _setup() -> void:
 	# ── Default selection ────────────────────────────────────────────────────
 	if buildings.is_empty():
 		push_warning("PlacementManager: No BuildingData assigned. Assign at least one in the Inspector.")
-	else:
-		_select_building(0)
+	# Default initial state is non-build mode
 
 	_print_help()
 
@@ -152,6 +151,9 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if get_viewport().gui_get_hovered_control() != null:
+		return
+
 	if _demolish_mode:
 		if event is InputEventMouseButton:
 			var mb := event as InputEventMouseButton
@@ -193,6 +195,24 @@ func _unhandled_input(event: InputEvent) -> void:
 					get_viewport().set_input_as_handled()
 				else:
 					deselect_building()
+
+# ─── Build Mode API ─────────────────────────────────────────────────────────────
+
+func exit_build_mode() -> void:
+	if not _build_mode:
+		return
+	_build_mode = false
+	_base_data = null
+	_current_data = null
+	if preview != null:
+		preview.set_preview_visible(false)
+	if _influence_overlay != null:
+		_influence_overlay.deactivate()
+	print("PlacementManager ▸ Build mode OFF")
+
+
+func is_build_mode() -> bool:
+	return _build_mode
 
 # ─── Demolish Mode API ─────────────────────────────────────────────────────────
 
@@ -373,6 +393,13 @@ func _handle_rotation() -> void:
 # ─── Hover / preview update ───────────────────────────────────────────────────
 
 func _update_hover() -> void:
+	if get_viewport().gui_get_hovered_control() != null:
+		if preview != null:
+			preview.set_preview_visible(false)
+		if _influence_overlay != null:
+			_influence_overlay.deactivate()
+		return
+
 	var world_mouse: Vector2 = _land_layer.get_global_mouse_position()
 	var local_mouse: Vector2 = _land_layer.to_local(world_mouse)
 	_hovered_cell = _land_layer.local_to_map(local_mouse)
