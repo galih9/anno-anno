@@ -37,6 +37,15 @@ enum BuildingType {
 ## The cost of placing this building. Defaults to 0.
 @export var cost: int = 0
 
+## Maintenance cost per month for this building.
+@export var maintenance_cost: int = 0
+
+## Required population threshold to unlock building in build menu.
+@export var required_population: int = 0
+
+## If true, requires Townhall to be placed first before unlocking.
+@export var requires_townhall: bool = false
+
 # ─── Scene ────────────────────────────────────────────────────────────────────
 
 ## The PackedScene to instantiate when this building is placed.

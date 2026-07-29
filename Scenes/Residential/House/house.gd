@@ -17,7 +17,7 @@ extends Node2D
 # ─── Types ────────────────────────────────────────────────────────────────────
 
 enum Status { ACTIVE, ABANDONED, DISCONNECTED }
-enum Level  { PEASANT }
+enum Level  { PEASANT, CITIZEN }
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -26,10 +26,18 @@ enum Level  { PEASANT }
 const ABANDON_TIME: float      = 30.0
 const ABANDON_THRESHOLD: float = 0.4
 
+const UPGRADE_LOG_COST: int  = 5
+const UPGRADE_DURATION: float = 5.0
+
 var has_restaurant_bonus: bool = false
+var is_upgrading: bool = false
+var upgrade_timer: float = 0.0
 
 func get_population_capacity() -> int:
-	return 6 if has_restaurant_bonus else 4
+	if level == Level.CITIZEN:
+		return 20 if happiness >= 0.99 else 10
+	else:
+		return 6 if has_restaurant_bonus else 4
 
 ## Base happiness when connected to a destination via path.
 const HAPPINESS_CONNECTED: float    = 0.5
@@ -59,6 +67,14 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	# Handle Upgrade Progress
+	if is_upgrading:
+		upgrade_timer += delta
+		if upgrade_timer >= UPGRADE_DURATION:
+			_finish_upgrade()
+	elif level == Level.PEASANT and has_restaurant_bonus and status == Status.ACTIVE:
+		_try_start_upgrade()
+
 	# Tick the abandonment timer only when happiness is critically low and the
 	# house is not already abandoned.
 	if happiness < ABANDON_THRESHOLD:
@@ -75,9 +91,62 @@ func _process(delta: float) -> void:
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 func get_info_text() -> String:
-	return "Status: %s\nHappiness: %.0f%%\nLevel: %s" % [
-		Status.keys()[status], happiness * 100.0, Level.keys()[level]
+	var lvl_str = "Citizen (Level 2)" if level == Level.CITIZEN else "Peasant (Level 1)"
+	if is_upgrading:
+		lvl_str += " [Upgrading: %d%%]" % int((upgrade_timer / UPGRADE_DURATION) * 100.0)
+	elif level == Level.PEASANT and has_restaurant_bonus:
+		lvl_str += " (Req: 5 Logs to Upgrade)"
+
+	return "Status: %s\nHappiness: %.0f%%\nLevel: %s\nCapacity: %d People" % [
+		Status.keys()[status],
+		happiness * 100.0,
+		lvl_str,
+		get_population_capacity()
 	]
+
+func _try_start_upgrade() -> void:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return
+	var main_node = tree.root.find_child("Main", true, false)
+	if main_node != null and "log" in main_node:
+		if main_node.log >= UPGRADE_LOG_COST:
+			main_node.log -= UPGRADE_LOG_COST
+			is_upgrading = true
+			upgrade_timer = 0.0
+			_show_floating_text("Upgrading House (5 Logs)... 🛠️", Color(0.9, 0.7, 0.2))
+
+func _finish_upgrade() -> void:
+	is_upgrading = false
+	level = Level.CITIZEN
+	_show_floating_text("Upgraded to Citizen House! 🏠✨", Color(0.3, 0.9, 1.0))
+
+	# Modulate visual sprite to indicate tier 2
+	var sprite = get_node_or_null("Sprite2D")
+	if sprite:
+		sprite.modulate = Color(1.15, 1.15, 1.3)
+
+	var tree := get_tree()
+	if tree != null and tree.root != null:
+		var ui_manager = tree.root.find_child("UIManager", true, false)
+		if ui_manager and ui_manager.has_method("show_toast"):
+			ui_manager.show_toast("🏠 House Upgraded!", "Upgraded to Level 2 (Citizen House)! Population capacity expanded to 10-20.")
+
+func _show_floating_text(text: String, text_color: Color = Color(0.2, 1.0, 0.2)) -> void:
+	var label = Label.new()
+	label.text = text
+	label.add_theme_color_override("font_color", text_color)
+	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_font_override("font", ThemeDB.fallback_font)
+	label.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	label.position = Vector2(-40, -45)
+	label.z_index = 100
+	add_child(label)
+
+	var tween = create_tween()
+	tween.tween_property(label, "position", label.position + Vector2(0, -35), 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(label, "modulate:a", 0.0, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tween.tween_callback(label.queue_free)
 
 ## Called by ConnectionChecker after every BFS pass.
 ## Drives the base happiness level from connection state.

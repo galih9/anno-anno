@@ -9,6 +9,7 @@ script = ExtResource("1_buildingdata")
 id = "townhall"
 display_name = "Townhall"
 building_type = 5
+cost = 500
 scene = ExtResource("2_utu5h")
 preview_texture = ExtResource("3_placeholder")
 sprite_offset = Vector2(0, -24)

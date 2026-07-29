@@ -40,6 +40,9 @@ var modal_open_town_info_btn: Button
 var _selected_building_ref: Node2D = null
 var _selected_building_data: BuildingData = null
 
+# Toast notification system
+var toast_container: VBoxContainer
+
 # Cached UI state
 var _curr_gold: int = 0
 var _curr_food: int = 0
@@ -54,6 +57,7 @@ func _ready() -> void:
 	font_settings.font_size = 14
 	
 	_setup_hud_status_bar()
+	_setup_toast_container()
 	_setup_info_panel()
 	_setup_building_modal()
 	_setup_demolish_banner()
@@ -66,6 +70,74 @@ func _ready() -> void:
 	var main = get_parent()
 	if main.has_signal("resources_updated"):
 		main.resources_updated.connect(_on_resources_updated)
+
+func _setup_toast_container() -> void:
+	toast_container = VBoxContainer.new()
+	toast_container.z_index = 200
+	toast_container.anchor_left = 1.0
+	toast_container.anchor_top = 0.0
+	toast_container.anchor_right = 1.0
+	toast_container.anchor_bottom = 0.0
+	toast_container.offset_left = -360
+	toast_container.offset_top = 20
+	toast_container.offset_right = -20
+	toast_container.add_theme_constant_override("separation", 8)
+	toast_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(toast_container)
+
+func show_toast(title_text: String, message_text: String, duration: float = 4.0) -> void:
+	if toast_container == null:
+		return
+
+	var toast = PanelContainer.new()
+	toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.12, 0.18, 0.95)
+	style.border_width_left = 3
+	style.border_color = Color(0.3, 0.85, 1.0, 0.9)
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 12
+	style.content_margin_top = 8
+	style.content_margin_right = 12
+	style.content_margin_bottom = 8
+	toast.add_theme_stylebox_override("panel", style)
+
+	var vbox = VBoxContainer.new()
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_theme_constant_override("separation", 2)
+	toast.add_child(vbox)
+
+	var t_lbl = Label.new()
+	t_lbl.text = title_text
+	var t_set = LabelSettings.new()
+	t_set.font = font
+	t_set.font_size = 12
+	t_set.font_color = Color(0.3, 0.9, 1.0)
+	t_lbl.label_settings = t_set
+	vbox.add_child(t_lbl)
+
+	var m_lbl = Label.new()
+	m_lbl.text = message_text
+	var m_set = LabelSettings.new()
+	m_set.font = font
+	m_set.font_size = 10
+	m_set.font_color = Color(0.9, 0.95, 1.0)
+	m_lbl.label_settings = m_set
+	vbox.add_child(m_lbl)
+
+	toast_container.add_child(toast)
+
+	# Fade / slide in animation
+	toast.modulate.a = 0.0
+	var tween = create_tween()
+	tween.tween_property(toast, "modulate:a", 1.0, 0.3)
+	tween.tween_interval(duration)
+	tween.tween_property(toast, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(toast.queue_free)
 
 func _process(_delta: float) -> void:
 	if _selected_building_ref != null:
@@ -596,6 +668,9 @@ func _setup_hud_buttons() -> void:
 
 
 func _setup_build_panel() -> void:
+	if build_panel != null:
+		build_panel.queue_free()
+
 	build_panel = PanelContainer.new()
 	build_panel.visible = false
 	build_panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -752,13 +827,23 @@ func _create_building_card(b: BuildingData, pm: Node) -> Button:
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.custom_minimum_size = Vector2(0, 48)
 	
+	var main = get_parent()
+	var is_unlocked: bool = true
+	if main != null and main.has_method("is_building_unlocked"):
+		is_unlocked = main.is_building_unlocked(b)
+
 	var card_style = StyleBoxFlat.new()
-	card_style.bg_color = Color(0.12, 0.16, 0.22, 0.85)
+	if is_unlocked:
+		card_style.bg_color = Color(0.12, 0.16, 0.22, 0.85)
+		card_style.border_color = Color(0.25, 0.35, 0.45, 0.6)
+	else:
+		card_style.bg_color = Color(0.06, 0.08, 0.11, 0.7)
+		card_style.border_color = Color(0.18, 0.22, 0.28, 0.4)
+	
 	card_style.border_width_left = 1
 	card_style.border_width_top = 1
 	card_style.border_width_right = 1
 	card_style.border_width_bottom = 1
-	card_style.border_color = Color(0.25, 0.35, 0.45, 0.6)
 	card_style.corner_radius_top_left = 6
 	card_style.corner_radius_top_right = 6
 	card_style.corner_radius_bottom_left = 6
@@ -769,12 +854,15 @@ func _create_building_card(b: BuildingData, pm: Node) -> Button:
 	card_style.content_margin_bottom = 6
 	
 	var card_hover = card_style.duplicate() as StyleBoxFlat
-	card_hover.bg_color = Color(0.18, 0.24, 0.32, 0.95)
-	card_hover.border_color = Color(0.3, 0.8, 1.0, 0.9)
+	if is_unlocked:
+		card_hover.bg_color = Color(0.18, 0.24, 0.32, 0.95)
+		card_hover.border_color = Color(0.3, 0.8, 1.0, 0.9)
 	
 	btn.add_theme_stylebox_override("normal", card_style)
 	btn.add_theme_stylebox_override("hover", card_hover)
 	btn.add_theme_stylebox_override("pressed", card_hover)
+	if not is_unlocked:
+		btn.disabled = true
 	
 	var hbox = HBoxContainer.new()
 	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -789,11 +877,15 @@ func _create_building_card(b: BuildingData, pm: Node) -> Button:
 		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tex_rect.custom_minimum_size = Vector2(36, 36)
+		if not is_unlocked:
+			tex_rect.modulate = Color(0.4, 0.4, 0.4, 0.6)
 		hbox.add_child(tex_rect)
 	else:
 		var fallback_lbl = Label.new()
 		fallback_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		fallback_lbl.text = "🏛️" if b.building_type == BuildingData.BuildingType.GOVERNMENT else ("🏠" if b.building_type == BuildingData.BuildingType.RESIDENT else "🏗️")
+		if not is_unlocked:
+			fallback_lbl.modulate = Color(0.4, 0.4, 0.4, 0.6)
 		hbox.add_child(fallback_lbl)
 		
 	var info_vbox = VBoxContainer.new()
@@ -807,34 +899,44 @@ func _create_building_card(b: BuildingData, pm: Node) -> Button:
 	var n_set = LabelSettings.new()
 	n_set.font = font
 	n_set.font_size = 12
-	n_set.font_color = Color(0.95, 0.95, 0.95)
+	n_set.font_color = Color(0.95, 0.95, 0.95) if is_unlocked else Color(0.5, 0.55, 0.6)
 	name_lbl.label_settings = n_set
 	info_vbox.add_child(name_lbl)
 	
 	var cost_str = "💰 %d Gold" % b.cost
 	if b.id == "house":
 		cost_str += " | 🪵 10 Log"
+	
+	if not is_unlocked:
+		if b.requires_townhall:
+			cost_str = "🔒 Requires Townhall"
+		elif b.required_population > 0:
+			cost_str = "🔒 Unlocks at %d Pop" % b.required_population
+		else:
+			cost_str = "🔒 Locked"
+			
 	var cost_lbl = Label.new()
 	cost_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cost_lbl.text = cost_str
 	var c_set = LabelSettings.new()
 	c_set.font = font
 	c_set.font_size = 9
-	c_set.font_color = Color(0.85, 0.75, 0.4)
+	c_set.font_color = Color(0.85, 0.75, 0.4) if is_unlocked else Color(0.7, 0.4, 0.4)
 	cost_lbl.label_settings = c_set
 	info_vbox.add_child(cost_lbl)
 	
-	btn.pressed.connect(func():
-		pm.start_placement(b)
-		build_panel.visible = false
-	)
+	if is_unlocked:
+		btn.pressed.connect(func():
+			pm.start_placement(b)
+			build_panel.visible = false
+		)
 	
 	return btn
 
 
 func toggle_build_menu(force_state: int = -1) -> void:
 	var pm = get_parent().get_node_or_null("PlacementManager")
-	var is_open: bool = build_panel.visible or (pm != null and (pm.is_build_mode() or pm.is_demolish_mode()))
+	var is_open: bool = (build_panel != null and build_panel.visible) or (pm != null and (pm.is_build_mode() or pm.is_demolish_mode()))
 	var should_open: bool
 	if force_state != -1:
 		should_open = (force_state == 1)
@@ -842,9 +944,11 @@ func toggle_build_menu(force_state: int = -1) -> void:
 		should_open = not is_open
 
 	if should_open:
+		_setup_build_panel()
 		build_panel.visible = true
 	else:
-		build_panel.visible = false
+		if build_panel != null:
+			build_panel.visible = false
 		if pm != null:
 			if pm.has_method("exit_build_mode"):
 				pm.exit_build_mode()
@@ -870,7 +974,7 @@ func _on_resources_updated(gold: int, food: int, log: int, population: int, mont
 	_curr_happiness = avg_happiness
 	_curr_tax = tax_rate
 
-	# Gameplay View HUD format: Gold: 50000 (+50) Population: 125
+	# Gameplay View HUD format: Gold: 50000 (+30) Population: 125
 	var sign_str = ("+" if monthly_income >= 0 else "") + str(monthly_income)
 	if hud_status_label:
 		hud_status_label.text = "Gold: %d (%s)   Population: %d" % [gold, sign_str, population]
@@ -900,11 +1004,17 @@ func _refresh_info_panel_ui() -> void:
 					elif b.resource_type == "log":
 						pending_log += b.produced_resource
 
+	var gross_tax = main.gross_tax_monthly if "gross_tax_monthly" in main else (_curr_income)
+	var total_maint = main.total_maintenance_monthly if "total_maintenance_monthly" in main else 0
+
 	var sign_str = ("+" if _curr_income >= 0 else "") + str(_curr_income)
 	if info_gold_label:
 		info_gold_label.text = "💰 Treasury: %d Gold" % _curr_gold
 	if info_income_label:
-		info_income_label.text = "📈 Monthly Income: %s Gold / mo" % sign_str
+		var maint_str = ""
+		if total_maint > 0:
+			maint_str = " (Tax: +%d, Maint: -%d)" % [gross_tax, total_maint]
+		info_income_label.text = "📈 Net Monthly Income: %s Gold / mo%s" % [sign_str, maint_str]
 	if info_pop_label:
 		info_pop_label.text = "👥 Total Population: %d" % _curr_pop
 
@@ -921,7 +1031,10 @@ func _refresh_info_panel_ui() -> void:
 	if info_storage_log_label:
 		info_storage_log_label.text = "🪵 Lumber (Log): %d units  (Uncollected: %d)" % [_curr_log, pending_log]
 	if info_storage_gold_label:
-		info_storage_gold_label.text = "💰 Gold Treasury: %d Gold" % _curr_gold
+		if total_maint > 0:
+			info_storage_gold_label.text = "💰 Gold Treasury: %d Gold  (Maint Cost: -%d/mo)" % [_curr_gold, total_maint]
+		else:
+			info_storage_gold_label.text = "💰 Gold Treasury: %d Gold" % _curr_gold
 
 	if tax_rate_label:
 		var tax_title = "Normal"
