@@ -36,6 +36,7 @@ var building_maintenance_breakdown: Dictionary = {}
 var avg_happiness: float = 1.0
 var active_houses_count: int = 0
 var abandoned_houses_count: int = 0
+var tick_counter: int = 0
 
 var unlocked_building_ids: Array[String] = ["townhall", "path"]
 var townhall_placed: bool = false
@@ -95,9 +96,24 @@ func _on_resource_tick() -> void:
 	var tax_factor: float = tax_rate / 100.0
 	var gold_per_house: int = int(round(2.0 * tax_factor))
 
-	# Process residents (population, gold, happiness tracking)
+	tick_counter += 1
+	var is_monthly_tick: bool = (tick_counter >= 12)
+	if is_monthly_tick:
+		tick_counter = 0
+
+	# Process residents (population, gold, happiness tracking, monthly food consumption)
 	var residents = registry.get_buildings_with_type(BuildingData.BuildingType.RESIDENT)
 	for house in residents:
+		if is_monthly_tick:
+			var food_cost = house.get_monthly_food_cost() if house.has_method("get_monthly_food_cost") else 1
+			if food >= food_cost:
+				food -= food_cost
+				if house.has_method("on_food_supplied"):
+					house.on_food_supplied()
+			else:
+				if house.has_method("on_food_deprived"):
+					house.on_food_deprived()
+
 		if "happiness" in house:
 			total_happiness += house.happiness
 		if "status" in house:
@@ -106,7 +122,9 @@ func _on_resource_tick() -> void:
 				var cap = house.get_population_capacity() if house.has_method("get_population_capacity") else 4
 				current_population += cap
 				var house_lvl = house.level if "level" in house else 0
-				var house_tax = int(round(gold_per_house * (2.5 if house_lvl == 1 else 1.0)))
+				var base_tax = int(round(gold_per_house * (2.5 if house_lvl == 1 else 1.0)))
+				var boost_mult: float = 1.5 if ("has_townhall_bonus" in house and house.has_townhall_bonus) else 1.0
+				var house_tax = int(round(float(base_tax) * boost_mult))
 				gen_gold += house_tax
 			elif house.status == 1: # ABANDONED
 				abandoned_houses_count += 1

@@ -382,7 +382,24 @@ func _update_modal_content() -> void:
 	modal_open_town_info_btn.visible = is_townhall
 
 	if _selected_building_ref.has_method("get_info_text"):
-		modal_info_label.text = _selected_building_ref.get_info_text()
+		var info_str = _selected_building_ref.get_info_text()
+		if "level" in _selected_building_ref and "has_restaurant_bonus" in _selected_building_ref:
+			info_str += "\n\n── UPGRADE REQUIREMENTS ──"
+			if "is_upgrading" in _selected_building_ref and _selected_building_ref.is_upgrading:
+				info_str += "\n [ 🛠️ Upgrading in progress... ]"
+			elif _selected_building_ref.level == 0: # PEASANT (Level 1)
+				var has_rest = _selected_building_ref.has_restaurant_bonus
+				var main_node = get_parent()
+				var current_logs = main_node.log if (main_node and "log" in main_node) else 0
+				var has_logs = current_logs >= 5
+
+				var rest_chk = " [✓] Restaurant Influence" if has_rest else " [✗] Restaurant Influence"
+				var log_chk = " [✓] Wood: %d/5 Logs" % current_logs if has_logs else " [✗] Wood: %d/5 Logs" % current_logs
+
+				info_str += "\n%s\n%s" % [rest_chk, log_chk]
+			else:
+				info_str += "\n [ Max Tier Reached ✨ ]"
+		modal_info_label.text = info_str
 	else:
 		modal_info_label.text = "No detailed status available."
 

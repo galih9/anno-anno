@@ -149,12 +149,14 @@ func update_cosmetic_effects() -> void:
 	if main_node != null and "tax_rate" in main_node:
 		tax_mod = (100 - main_node.tax_rate) * 0.005
 
-	# ── Reset all bench and restaurant bonuses & apply tax modifier ───────────
+	# ── Reset all bench, restaurant & townhall bonuses & apply tax modifier ───
 	for building in registry.get_buildings_with_type(BuildingData.BuildingType.RESIDENT):
 		if building.has_method("reset_happiness_bonus"):
 			building.reset_happiness_bonus()
 		if building.has_method("reset_restaurant_bonus"):
 			building.reset_restaurant_bonus()
+		if building.has_method("reset_townhall_bonus"):
+			building.reset_townhall_bonus()
 		if building.has_method("set_tax_modifier"):
 			building.set_tax_modifier(tax_mod)
 
@@ -191,6 +193,23 @@ func update_cosmetic_effects() -> void:
 			if _is_within_radius(s_cells, r_cells, s_data.influence_radius):
 				if resident.has_method("apply_restaurant_bonus"):
 					resident.apply_restaurant_bonus()
+
+	# ── Apply bonuses from every government building (Townhall) ───────────────
+	var gov_buildings: Array[Node2D] = registry.get_buildings_with_type(
+		BuildingData.BuildingType.GOVERNMENT
+	)
+	for gov in gov_buildings:
+		var g_data: BuildingData = _get_data(gov)
+		if g_data == null or g_data.influence_radius <= 0:
+			continue
+
+		var g_cells: Array[Vector2i] = registry.get_cells_of(gov)
+
+		for resident in registry.get_buildings_with_type(BuildingData.BuildingType.RESIDENT):
+			var r_cells: Array[Vector2i] = registry.get_cells_of(resident)
+			if _is_within_radius(g_cells, r_cells, g_data.influence_radius):
+				if resident.has_method("apply_townhall_bonus"):
+					resident.apply_townhall_bonus()
 
 func _get_main_node() -> Node:
 	var tree := get_tree()

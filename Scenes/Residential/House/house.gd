@@ -30,8 +30,16 @@ const UPGRADE_LOG_COST: int  = 5
 const UPGRADE_DURATION: float = 5.0
 
 var has_restaurant_bonus: bool = false
+var has_townhall_bonus: bool = false
+var is_fed: bool = true
+var unfed_months: int = 0
+var food_happiness_penalty: float = 0.0
+
 var is_upgrading: bool = false
 var upgrade_timer: float = 0.0
+
+func get_monthly_food_cost() -> int:
+	return 3 if level == Level.CITIZEN else 1
 
 func get_population_capacity() -> int:
 	if level == Level.CITIZEN:
@@ -94,15 +102,36 @@ func get_info_text() -> String:
 	var lvl_str = "Citizen (Level 2)" if level == Level.CITIZEN else "Peasant (Level 1)"
 	if is_upgrading:
 		lvl_str += " [Upgrading: %d%%]" % int((upgrade_timer / UPGRADE_DURATION) * 100.0)
-	elif level == Level.PEASANT and has_restaurant_bonus:
-		lvl_str += " (Req: 5 Logs to Upgrade)"
 
-	return "Status: %s\nHappiness: %.0f%%\nLevel: %s\nCapacity: %d People" % [
+	var food_str = "%d Food/mo (%s)" % [
+		get_monthly_food_cost(),
+		"Supplied" if is_fed else "⚠️ STARVING (%d mo)" % unfed_months
+	]
+
+	var boost_str = " +50% Gold Boost" if has_townhall_bonus else " None"
+
+	return "Status: %s\nHappiness: %.0f%%\nLevel: %s\nCapacity: %d People\nFood Needed: %s\nTownhall Effect:%s" % [
 		Status.keys()[status],
 		happiness * 100.0,
 		lvl_str,
-		get_population_capacity()
+		get_population_capacity(),
+		food_str,
+		boost_str
 	]
+
+func on_food_supplied() -> void:
+	is_fed = true
+	unfed_months = 0
+	food_happiness_penalty = 0.0
+	_recalculate_happiness()
+
+func on_food_deprived() -> void:
+	is_fed = false
+	unfed_months += 1
+	food_happiness_penalty = min(1.0, float(unfed_months) * 0.25)
+	_recalculate_happiness()
+	if unfed_months >= 1:
+		_show_floating_text("No Food! Starving... 🥖❌", Color(1.0, 0.3, 0.3))
 
 func _try_start_upgrade() -> void:
 	var tree := get_tree()
@@ -184,8 +213,14 @@ func reset_restaurant_bonus() -> void:
 func apply_restaurant_bonus() -> void:
 	has_restaurant_bonus = true
 
+func reset_townhall_bonus() -> void:
+	has_townhall_bonus = false
+
+func apply_townhall_bonus() -> void:
+	has_townhall_bonus = true
+
 # ─── Private helpers ──────────────────────────────────────────────────────────
 
 func _recalculate_happiness() -> void:
-	happiness = clamp(_base_happiness + _bench_bonus + tax_modifier, 0.0, 1.0)
+	happiness = clamp(_base_happiness + _bench_bonus + tax_modifier - food_happiness_penalty, 0.0, 1.0)
 
