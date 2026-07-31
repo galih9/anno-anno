@@ -18,7 +18,8 @@ func set_status(status_text: String, _desc: String) -> void:
 		status = Status.DISCONNECTED
 
 func get_info_text() -> String:
-	return "Status: %s\nRadius: %d" % [
-		Status.keys()[status],
+	var status_str = "Aktif" if status == Status.ACTIVE else "Terputus"
+	return "Status: %s\nJangkauan Pengaruh: %d" % [
+		status_str,
 		data.influence_radius if data else 5
 	]

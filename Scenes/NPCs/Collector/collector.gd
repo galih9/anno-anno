@@ -159,6 +159,8 @@ func _do_transfer_in_tick() -> void:
 	_update_label()
 
 func _start_return_leg() -> void:
+	if is_instance_valid(target_resource_building) and "is_collection_pending" in target_resource_building:
+		target_resource_building.is_collection_pending = false
 	var return_path: Array[Vector2] = path_world_points.duplicate()
 	return_path.reverse()
 	path_world_points = return_path
@@ -191,6 +193,8 @@ func _do_transfer_out_tick() -> void:
 
 func _finish_return() -> void:
 	state = "FINISHED"
+	if is_instance_valid(target_resource_building) and "is_collection_pending" in target_resource_building:
+		target_resource_building.is_collection_pending = false
 	if is_instance_valid(home_restaurant) and home_restaurant.has_method("on_collector_returned"):
 		home_restaurant.on_collector_returned(self, carrying_resource_type, 0)
 	queue_free()
@@ -201,12 +205,13 @@ func _update_label() -> void:
 
 	match state:
 		"TRANSFER_IN":
-			status_label.text = "Loading... (%d)" % carrying_amount
+			status_label.text = "Mengambil... (%d)" % carrying_amount
 		"TRANSFER_OUT":
-			status_label.text = "Unloading... (%d)" % carrying_amount
+			status_label.text = "Menaruh... (%d)" % carrying_amount
 		"MOVING_TO_RESTAURANT":
 			if carrying_amount > 0:
-				status_label.text = "%d %s" % [carrying_amount, carrying_resource_type.capitalize()]
+				var res_name = "Bambu" if carrying_resource_type == "log" else ("Talas" if carrying_resource_type == "food" else carrying_resource_type.capitalize())
+				status_label.text = "%d %s" % [carrying_amount, res_name]
 			else:
 				status_label.text = ""
 		_:

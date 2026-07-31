@@ -7,7 +7,7 @@
 [resource]
 script = ExtResource("1_buildingdata")
 id = "ricefield_field"
-display_name = "Lumberjack Field"
+display_name = "Petak Kebun"
 building_type = 2
 cost = 0
 scene = ExtResource("2_scene")

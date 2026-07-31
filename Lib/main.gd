@@ -195,10 +195,10 @@ func _check_progression_unlocks(curr_pop: int, pm: Node) -> void:
 
 			var ui_manager = get_node_or_null("UIManager")
 			if ui_manager and ui_manager.has_method("show_toast"):
-				var desc = "New building available in Build Menu!"
+				var desc = "Bangunan baru tersedia di Menu Pembangunan!"
 				if b_data.required_population > 0:
-					desc = "Reached %d Population milestone!" % b_data.required_population
+					desc = "Mencapai pencapaian %d Penduduk!" % b_data.required_population
 				elif b_data.requires_townhall:
-					desc = "Unlocked after constructing Townhall!"
-				ui_manager.show_toast("🎉 UNLOCKED: %s" % b_data.display_name, desc)
+					desc = "Terbuka setelah mendirikan Balai Kota!"
+				ui_manager.show_toast("🎉 TERBUKA: %s" % b_data.display_name, desc)
 

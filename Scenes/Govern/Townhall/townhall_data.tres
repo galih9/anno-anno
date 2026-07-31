@@ -7,7 +7,7 @@
 [resource]
 script = ExtResource("1_buildingdata")
 id = "townhall"
-display_name = "Townhall"
+display_name = "Balai Kota"
 building_type = 5
 cost = 500
 scene = ExtResource("2_utu5h")

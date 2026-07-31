@@ -146,8 +146,8 @@ func add_produced_resource(amount: int) -> void:
 		var actual_added = storage - old_storage
 		
 		if actual_added > 0:
-			_show_floating_text("+%d %s" % [actual_added, resource_type])
-			
+			_show_floating_text("+%d Talas" % actual_added)
+
 		if storage >= max_storage and status == Status.ACTIVE:
 			status = Status.HALTED
 			_clear_worker_work()
@@ -227,18 +227,22 @@ func get_info_text() -> String:
 
 	var effective_status: String
 	if not is_user_active:
-		effective_status = "INACTIVE (Paused)"
+		effective_status = "Tidak Aktif (Jeda)"
 	else:
-		effective_status = Status.keys()[status]
+		match status:
+			Status.ACTIVE: effective_status = "Aktif"
+			Status.INACTIVE: effective_status = "Tidak Aktif"
+			Status.DISCONNECTED: effective_status = "Terputus"
+			Status.HALTED: effective_status = "Penuh (Henti)"
+			_: effective_status = "Tidak Aktif"
 
-	var worker_state: String = "Working" if is_instance_valid(active_worker_field) else "Idle"
+	var worker_state: String = "Bekerja" if is_instance_valid(active_worker_field) else "Istirahat"
 
-	return "Status: %s\nStorage: %d/%d (%s)\nWorker: 1/1 (%s)\nFields: %d (Empty:%d Grow:%d Harvest:%d)" % [
+	return "Status: %s\nLumbung: %d/%d (Talas)\nPekerja: 1/1 (%s)\nPetak Ladang: %d (Kosong:%d Tumbuh:%d Panen:%d)" % [
 		effective_status,
 		storage,
 		max_storage,
-		resource_type.capitalize(),
-		worker_state if (status == Status.ACTIVE and is_user_active) else "Stopped",
+		worker_state if (status == Status.ACTIVE and is_user_active) else "Dihentikan",
 		fields.size(),
 		empty_count,
 		growing_count,

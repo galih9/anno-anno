@@ -5,4 +5,4 @@
 [resource]
 script = ExtResource("1_buildingdata")
 id = "ricefield_field"
-display_name = "Ricefield Field"
+display_name = "Petak Ladang"

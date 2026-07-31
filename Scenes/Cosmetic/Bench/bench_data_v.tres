@@ -7,7 +7,7 @@
 [resource]
 script = ExtResource("1_buildingdata")
 id = "bench"
-display_name = "Bench (V)"
+display_name = "Kursi Taman (V)"
 building_type = 4
 scene = ExtResource("2_bench")
 preview_texture = ExtResource("3_benchimg_v")

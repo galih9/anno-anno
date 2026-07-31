@@ -7,7 +7,7 @@
 [resource]
 script = ExtResource("1_buildingdata")
 id = "house"
-display_name = "House"
+display_name = "Wisma Warga"
 building_type = 1
 cost = 50
 requires_townhall = true

@@ -7,7 +7,7 @@
 [resource]
 script = ExtResource("1_buildingdata")
 id = "path"
-display_name = "Path"
+display_name = "Jalan"
 scene = ExtResource("2_ihxhy")
 preview_texture = ExtResource("2_pathway")
 is_connector = true

@@ -9,7 +9,7 @@
 [resource]
 script = ExtResource("1_buildingdata")
 id = "ricefield"
-display_name = "Ricefield"
+display_name = "Ladang"
 building_type = 2
 cost = 150
 maintenance_cost = 15

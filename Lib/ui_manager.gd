@@ -63,7 +63,6 @@ func _ready() -> void:
 	_setup_demolish_banner()
 	_setup_hud_buttons()
 	
-	# Defer setup of build panel so PlacementManager has time to setup if needed
 	call_deferred("_setup_build_panel")
 	call_deferred("_connect_placement_manager")
 	
@@ -131,7 +130,6 @@ func show_toast(title_text: String, message_text: String, duration: float = 4.0)
 
 	toast_container.add_child(toast)
 
-	# Fade / slide in animation
 	toast.modulate.a = 0.0
 	var tween = create_tween()
 	tween.tween_property(toast, "modulate:a", 1.0, 0.3)
@@ -182,10 +180,9 @@ func _setup_hud_status_bar() -> void:
 	
 	hud_status_label = Label.new()
 	hud_status_label.label_settings = font_settings
-	hud_status_label.text = "Gold: 0 (+0)   Population: 0"
+	hud_status_label.text = "Emas: 0 (+0)   Penduduk: 0"
 	hud_status_panel.add_child(hud_status_label)
 	
-	# Compatibility alias
 	always_visible_gold_label = hud_status_label
 
 func _setup_demolish_banner() -> void:
@@ -211,7 +208,7 @@ func _setup_demolish_banner() -> void:
 	demolish_banner.add_theme_stylebox_override("panel", style)
 	
 	var lbl = Label.new()
-	lbl.text = "🔨 DEMOLISH MODE  |  Click: demolish building  |  Hold & Drag: demolish pathways  |  ESC / RMB: exit"
+	lbl.text = "🔨 MODE BONGKAR  |  Klik: bongkar bangunan  |  Tahan & Geser: bongkar jalan  |  ESC / Klik Kanan: keluar"
 	var banner_font = LabelSettings.new()
 	banner_font.font = font
 	banner_font.font_size = 12
@@ -221,7 +218,6 @@ func _setup_demolish_banner() -> void:
 	
 	add_child(demolish_banner)
 	
-	# Center top position
 	demolish_banner.anchor_left = 0.5
 	demolish_banner.anchor_right = 0.5
 	demolish_banner.anchor_top = 0.0
@@ -260,7 +256,6 @@ func _setup_building_modal() -> void:
 	main_vbox.add_theme_constant_override("separation", 6)
 	building_modal.add_child(main_vbox)
 
-	# Header row (Title + Close Button)
 	var header_hbox = HBoxContainer.new()
 	main_vbox.add_child(header_hbox)
 
@@ -296,11 +291,9 @@ func _setup_building_modal() -> void:
 	)
 	header_hbox.add_child(close_btn)
 
-	# Separator
 	var sep = HSeparator.new()
 	main_vbox.add_child(sep)
 
-	# Info body
 	modal_info_label = Label.new()
 	var info_settings = LabelSettings.new()
 	info_settings.font = font
@@ -309,9 +302,8 @@ func _setup_building_modal() -> void:
 	modal_info_label.label_settings = info_settings
 	main_vbox.add_child(modal_info_label)
 
-	# Town Info trigger for Townhall
 	modal_open_town_info_btn = Button.new()
-	modal_open_town_info_btn.text = "🏛️ Manage Town Policy"
+	modal_open_town_info_btn.text = "🏛️ Kelola Kebijakan Praja"
 	modal_open_town_info_btn.visible = false
 	modal_open_town_info_btn.add_theme_font_override("font", font)
 	modal_open_town_info_btn.pressed.connect(func():
@@ -319,13 +311,12 @@ func _setup_building_modal() -> void:
 	)
 	main_vbox.add_child(modal_open_town_info_btn)
 
-	# Action buttons row
 	var actions_hbox = HBoxContainer.new()
 	actions_hbox.add_theme_constant_override("separation", 8)
 	main_vbox.add_child(actions_hbox)
 
 	modal_toggle_active_btn = Button.new()
-	modal_toggle_active_btn.text = "Pause Production"
+	modal_toggle_active_btn.text = "Hentikan Produksi"
 	modal_toggle_active_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	modal_toggle_active_btn.add_theme_font_override("font", font)
 	modal_toggle_active_btn.pressed.connect(func():
@@ -337,7 +328,7 @@ func _setup_building_modal() -> void:
 	actions_hbox.add_child(modal_toggle_active_btn)
 
 	modal_demolish_btn = Button.new()
-	modal_demolish_btn.text = "Demolish"
+	modal_demolish_btn.text = "Bongkar Bangunan"
 	modal_demolish_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	modal_demolish_btn.add_theme_font_override("font", font)
 	modal_demolish_btn.pressed.connect(func():
@@ -369,7 +360,15 @@ func _update_modal_content() -> void:
 	var is_townhall: bool = false
 	if _selected_building_data != null:
 		modal_title_label.text = _selected_building_data.display_name
-		var type_name = BuildingData.BuildingType.keys()[_selected_building_data.building_type].capitalize()
+		var type_name = ""
+		match _selected_building_data.building_type:
+			BuildingData.BuildingType.CONNECTOR: type_name = "Penghubung"
+			BuildingData.BuildingType.RESIDENT: type_name = "Pemukiman"
+			BuildingData.BuildingType.RESOURCE: type_name = "Sumber Daya"
+			BuildingData.BuildingType.PUBLIC_SERVICE: type_name = "Fasilitas Umum"
+			BuildingData.BuildingType.COSMETIC: type_name = "Dekorasi"
+			BuildingData.BuildingType.GOVERNMENT: type_name = "Pemerintahan"
+			_: type_name = "Bangunan"
 		modal_category_label.text = "[ %s ]" % type_name
 		if _selected_building_data.id == "townhall":
 			is_townhall = true
@@ -383,32 +382,27 @@ func _update_modal_content() -> void:
 
 	if _selected_building_ref.has_method("get_info_text"):
 		var info_str = _selected_building_ref.get_info_text()
-		if "level" in _selected_building_ref and "has_restaurant_bonus" in _selected_building_ref:
-			info_str += "\n\n── UPGRADE REQUIREMENTS ──"
+		if _selected_building_ref.has_method("get_upgrade_requirements"):
+			var req = _selected_building_ref.get_upgrade_requirements()
+			info_str += "\n\n── SYARAT PENINGKATAN TIAR ──"
 			if "is_upgrading" in _selected_building_ref and _selected_building_ref.is_upgrading:
-				info_str += "\n [ 🛠️ Upgrading in progress... ]"
-			elif _selected_building_ref.level == 0: # PEASANT (Level 1)
-				var has_rest = _selected_building_ref.has_restaurant_bonus
-				var main_node = get_parent()
-				var current_logs = main_node.log if (main_node and "log" in main_node) else 0
-				var has_logs = current_logs >= 5
-
-				var rest_chk = " [✓] Restaurant Influence" if has_rest else " [✗] Restaurant Influence"
-				var log_chk = " [✓] Wood: %d/5 Logs" % current_logs if has_logs else " [✗] Wood: %d/5 Logs" % current_logs
-
-				info_str += "\n%s\n%s" % [rest_chk, log_chk]
+				info_str += "\n [ 🛠️ Peningkatan sedang berlangsung... ]"
+			elif not req.max_tier_reached:
+				var rest_chk = " [✓] Pengaruh Gelanggang" if req.has_service_bonus else " [✗] Pengaruh Gelanggang"
+				var log_chk = " [✓] Kayu: %d/%d Bambu" % [_curr_log, req.log_cost] if req.has_logs else " [✗] Kayu: %d/%d Bambu" % [_curr_log, req.log_cost]
+				info_str += "\n Target: %s\n%s\n%s" % [req.next_tier_name, rest_chk, log_chk]
 			else:
-				info_str += "\n [ Max Tier Reached ✨ ]"
+				info_str += "\n [ Tingkat Tertinggi Tercapai ✨ ]"
 		modal_info_label.text = info_str
 	else:
-		modal_info_label.text = "No detailed status available."
+		modal_info_label.text = "Status tidak tersedia."
 
 	if _selected_building_ref.has_method("toggle_user_active"):
 		modal_toggle_active_btn.visible = true
 		var is_active: bool = true
 		if "is_user_active" in _selected_building_ref:
 			is_active = _selected_building_ref.is_user_active
-		modal_toggle_active_btn.text = "Pause Production" if is_active else "Resume Production"
+		modal_toggle_active_btn.text = "Hentikan Produksi" if is_active else "Lanjutkan Produksi"
 	else:
 		modal_toggle_active_btn.visible = false
 
@@ -418,7 +412,6 @@ func _update_modal_position() -> void:
 
 	var canvas_transform := get_viewport().get_canvas_transform()
 	var screen_pos := canvas_transform * _selected_building_ref.global_position
-	# Offset to float above building center
 	building_modal.position = screen_pos + Vector2(-building_modal.size.x / 2.0, -building_modal.size.y - 25.0)
 
 func _setup_info_panel() -> void:
@@ -426,7 +419,6 @@ func _setup_info_panel() -> void:
 	info_panel.visible = false
 	info_panel.z_index = 110
 	
-	# Centered overlay panel layout
 	info_panel.anchor_left = 0.5
 	info_panel.anchor_top = 0.5
 	info_panel.anchor_right = 0.5
@@ -461,7 +453,6 @@ func _setup_info_panel() -> void:
 	main_vbox.add_theme_constant_override("separation", 8)
 	info_panel.add_child(main_vbox)
 	
-	# Header Row
 	var header_hbox = HBoxContainer.new()
 	main_vbox.add_child(header_hbox)
 	
@@ -470,7 +461,7 @@ func _setup_info_panel() -> void:
 	header_hbox.add_child(title_vbox)
 	
 	var title = Label.new()
-	title.text = "🏛️ TOWN MANAGEMENT"
+	title.text = "🏛️ PENGELOLAAN PRAJA"
 	var t_set = LabelSettings.new()
 	t_set.font = font
 	t_set.font_size = 15
@@ -479,7 +470,7 @@ func _setup_info_panel() -> void:
 	title_vbox.add_child(title)
 	
 	var sub = Label.new()
-	sub.text = "City Overview, Storage & Policy"
+	sub.text = "Ikhtisar Wilayah, Lumbung & Kebijakan"
 	var s_set = LabelSettings.new()
 	s_set.font = font
 	s_set.font_size = 10
@@ -497,9 +488,8 @@ func _setup_info_panel() -> void:
 	
 	main_vbox.add_child(HSeparator.new())
 	
-	# Stats Section
 	var stats_title = Label.new()
-	stats_title.text = "── CITY STATISTICS ──"
+	stats_title.text = "── STATISTIK WILAYAH ──"
 	var st_set = LabelSettings.new()
 	st_set.font = font
 	st_set.font_size = 11
@@ -533,9 +523,8 @@ func _setup_info_panel() -> void:
 	
 	main_vbox.add_child(HSeparator.new())
 	
-	# Storage / Item Info Section
 	var storage_header = Label.new()
-	storage_header.text = "── ITEM STORAGE ──"
+	storage_header.text = "── LUMBUNG & HASIL BUMI ──"
 	storage_header.label_settings = st_set
 	main_vbox.add_child(storage_header)
 	
@@ -557,9 +546,8 @@ func _setup_info_panel() -> void:
 	
 	main_vbox.add_child(HSeparator.new())
 	
-	# Tax Section
 	var tax_header = Label.new()
-	tax_header.text = "── TAXATION POLICY ──"
+	tax_header.text = "── KEBIJAKAN UPETI (PAJAK) ──"
 	tax_header.label_settings = st_set
 	main_vbox.add_child(tax_header)
 	
@@ -577,7 +565,7 @@ func _setup_info_panel() -> void:
 	tax_hbox.add_child(tax_minus_btn)
 	
 	tax_rate_label = Label.new()
-	tax_rate_label.text = "Tax Rate: 100%"
+	tax_rate_label.text = "Tingkat Upeti: 100%"
 	tax_rate_label.label_settings = font_settings
 	tax_hbox.add_child(tax_rate_label)
 	
@@ -613,9 +601,8 @@ func toggle_info_panel(force_show: bool = false) -> void:
 		_refresh_info_panel_ui()
 
 func _setup_hud_buttons() -> void:
-	# Town Info button
 	var info_btn = Button.new()
-	info_btn.text = "🏛️ TOWN INFO"
+	info_btn.text = "🏛️ PRAJA"
 	info_btn.add_theme_font_override("font", font)
 	info_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	
@@ -657,9 +644,8 @@ func _setup_hud_buttons() -> void:
 	)
 	add_child(info_btn)
 
-	# Build Menu button
 	var hud_btn = Button.new()
-	hud_btn.text = "🔨 BUILD MENU"
+	hud_btn.text = "🔨 PEMBANGUNAN"
 	hud_btn.add_theme_font_override("font", font)
 	hud_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	
@@ -683,7 +669,6 @@ func _setup_hud_buttons() -> void:
 	)
 	add_child(hud_btn)
 
-
 func _setup_build_panel() -> void:
 	if build_panel != null:
 		build_panel.queue_free()
@@ -693,7 +678,6 @@ func _setup_build_panel() -> void:
 	build_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(build_panel)
 	
-	# Dock right side of viewport
 	build_panel.anchor_left = 1.0
 	build_panel.anchor_top = 0.0
 	build_panel.anchor_right = 1.0
@@ -705,7 +689,6 @@ func _setup_build_panel() -> void:
 	build_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	build_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	
-	# Modern Dark Glassmorphic Style
 	var panel_style = StyleBoxFlat.new()
 	panel_style.bg_color = Color(0.08, 0.11, 0.16, 0.95)
 	panel_style.border_width_left = 2
@@ -723,7 +706,6 @@ func _setup_build_panel() -> void:
 	main_vbox.add_theme_constant_override("separation", 10)
 	build_panel.add_child(main_vbox)
 	
-	# Header Row (Title + Subtitle + Close Button)
 	var header_hbox = HBoxContainer.new()
 	header_hbox.mouse_filter = Control.MOUSE_FILTER_STOP
 	main_vbox.add_child(header_hbox)
@@ -734,7 +716,7 @@ func _setup_build_panel() -> void:
 	header_hbox.add_child(title_vbox)
 	
 	var title = Label.new()
-	title.text = "BUILD MENU"
+	title.text = "MENU PEMBANGUNAN"
 	var t_set = LabelSettings.new()
 	t_set.font = font
 	t_set.font_size = 16
@@ -743,7 +725,7 @@ func _setup_build_panel() -> void:
 	title_vbox.add_child(title)
 	
 	var subtitle = Label.new()
-	subtitle.text = "Right-Click to Toggle"
+	subtitle.text = "Klik Kanan untuk Membuka/Menutup"
 	var sub_set = LabelSettings.new()
 	sub_set.font = font
 	sub_set.font_size = 9
@@ -765,9 +747,8 @@ func _setup_build_panel() -> void:
 	var pm = get_parent().get_node_or_null("PlacementManager")
 	if not pm: return
 	
-	# Prominent Demolish Mode button
 	var demolish_btn = Button.new()
-	demolish_btn.text = "🔨 DEMOLISH MODE"
+	demolish_btn.text = "🔨 MODE BONGKAR"
 	demolish_btn.add_theme_font_override("font", font)
 	demolish_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	
@@ -795,7 +776,6 @@ func _setup_build_panel() -> void:
 	var sep2 = HSeparator.new()
 	main_vbox.add_child(sep2)
 	
-	# ScrollContainer for building items
 	var scroll = ScrollContainer.new()
 	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -813,14 +793,22 @@ func _setup_build_panel() -> void:
 	for b in pm.buildings:
 		if b == null:
 			continue
-		var type_name = BuildingData.BuildingType.keys()[b.building_type]
+		var type_name = ""
+		match b.building_type:
+			BuildingData.BuildingType.CONNECTOR: type_name = "PENGHUBUNG"
+			BuildingData.BuildingType.RESIDENT: type_name = "PEMUKIMAN"
+			BuildingData.BuildingType.RESOURCE: type_name = "SUMBER DAYA"
+			BuildingData.BuildingType.PUBLIC_SERVICE: type_name = "FASILITAS UMUM"
+			BuildingData.BuildingType.COSMETIC: type_name = "DEKORASI"
+			BuildingData.BuildingType.GOVERNMENT: type_name = "PEMERINTAHAN"
+			_: type_name = "BANGUNAN"
 		if not categories.has(type_name):
 			categories[type_name] = []
 		categories[type_name].append(b)
 		
 	for cat in categories.keys():
 		var cat_label = Label.new()
-		cat_label.text = "── " + cat.capitalize() + " ──"
+		cat_label.text = "── " + cat + " ──"
 		var c_set = LabelSettings.new()
 		c_set.font = font
 		c_set.font_size = 12
@@ -836,7 +824,6 @@ func _setup_build_panel() -> void:
 		for b in categories[cat]:
 			var card_btn = _create_building_card(b, pm)
 			cat_vbox.add_child(card_btn)
-
 
 func _create_building_card(b: BuildingData, pm: Node) -> Button:
 	var btn = Button.new()
@@ -886,7 +873,6 @@ func _create_building_card(b: BuildingData, pm: Node) -> Button:
 	hbox.add_theme_constant_override("separation", 10)
 	btn.add_child(hbox)
 	
-	# Icon display
 	if b.preview_texture != null:
 		var tex_rect = TextureRect.new()
 		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -920,17 +906,17 @@ func _create_building_card(b: BuildingData, pm: Node) -> Button:
 	name_lbl.label_settings = n_set
 	info_vbox.add_child(name_lbl)
 	
-	var cost_str = "💰 %d Gold" % b.cost
+	var cost_str = "💰 %d Emas" % b.cost
 	if b.id == "house":
-		cost_str += " | 🪵 10 Log"
+		cost_str += " | 🪵 10 Bambu"
 	
 	if not is_unlocked:
 		if b.requires_townhall:
-			cost_str = "🔒 Requires Townhall"
+			cost_str = "🔒 Membutuhkan Balai Kota"
 		elif b.required_population > 0:
-			cost_str = "🔒 Unlocks at %d Pop" % b.required_population
+			cost_str = "🔒 Terbuka pada %d Penduduk" % b.required_population
 		else:
-			cost_str = "🔒 Locked"
+			cost_str = "🔒 Terkunci"
 			
 	var cost_lbl = Label.new()
 	cost_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -949,7 +935,6 @@ func _create_building_card(b: BuildingData, pm: Node) -> Button:
 		)
 	
 	return btn
-
 
 func toggle_build_menu(force_state: int = -1) -> void:
 	var pm = get_parent().get_node_or_null("PlacementManager")
@@ -972,7 +957,6 @@ func toggle_build_menu(force_state: int = -1) -> void:
 			if pm.has_method("exit_demolish_mode"):
 				pm.exit_demolish_mode()
 
-
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("info_btn"):
 		toggle_info_panel()
@@ -980,7 +964,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("build_btn"):
 		toggle_build_menu()
 		get_viewport().set_input_as_handled()
-
 
 func _on_resources_updated(gold: int, food: int, log: int, population: int, monthly_income: int = 0, avg_happiness: float = 1.0, tax_rate: int = 100) -> void:
 	_curr_gold = gold
@@ -991,10 +974,9 @@ func _on_resources_updated(gold: int, food: int, log: int, population: int, mont
 	_curr_happiness = avg_happiness
 	_curr_tax = tax_rate
 
-	# Gameplay View HUD format: Gold: 50000 (+30) Population: 125
 	var sign_str = ("+" if monthly_income >= 0 else "") + str(monthly_income)
 	if hud_status_label:
-		hud_status_label.text = "Gold: %d (%s)   Population: %d" % [gold, sign_str, population]
+		hud_status_label.text = "Emas: %d (%s)   Penduduk: %d" % [gold, sign_str, population]
 
 	_refresh_info_panel_ui()
 
@@ -1006,7 +988,6 @@ func _refresh_info_panel_ui() -> void:
 	var act_houses = main.active_houses_count if "active_houses_count" in main else 0
 	var ab_houses = main.abandoned_houses_count if "abandoned_houses_count" in main else 0
 
-	# Query pending uncollected items in production buildings
 	var pending_food: int = 0
 	var pending_log: int = 0
 	var pm = main.get_node_or_null("PlacementManager")
@@ -1026,47 +1007,46 @@ func _refresh_info_panel_ui() -> void:
 
 	var sign_str = ("+" if _curr_income >= 0 else "") + str(_curr_income)
 	if info_gold_label:
-		info_gold_label.text = "💰 Treasury: %d Gold" % _curr_gold
+		info_gold_label.text = "💰 Perbendaharaan: %d Emas" % _curr_gold
 	if info_income_label:
 		var maint_str = ""
 		if total_maint > 0:
-			maint_str = " (Tax: +%d, Maint: -%d)" % [gross_tax, total_maint]
-		info_income_label.text = "📈 Net Monthly Income: %s Gold / mo%s" % [sign_str, maint_str]
+			maint_str = " (Upeti: +%d, Pemeliharaan: -%d)" % [gross_tax, total_maint]
+		info_income_label.text = "📈 Pendapatan Bersih: %s Emas / bln%s" % [sign_str, maint_str]
 	if info_pop_label:
-		info_pop_label.text = "👥 Total Population: %d" % _curr_pop
+		info_pop_label.text = "👥 Total Warga: %d Jiwa" % _curr_pop
 
 	if info_happiness_label:
 		var hap_pct = int(round(_curr_happiness * 100.0))
-		info_happiness_label.text = "😊 Happiness: %d%%" % hap_pct
+		info_happiness_label.text = "😊 Kebahagiaan: %d%%" % hap_pct
 
 	if info_housing_label:
-		info_housing_label.text = "🏠 Houses: %d Active / %d Abandoned" % [act_houses, ab_houses]
+		info_housing_label.text = "🏠 Wisma: %d Aktif / %d Ditinggalkan" % [act_houses, ab_houses]
 
-	# Item storage breakdown
 	if info_storage_food_label:
-		info_storage_food_label.text = "🌾 Food Crops: %d units  (Uncollected: %d)" % [_curr_food, pending_food]
+		info_storage_food_label.text = "🌾 Hasil Panen (Talas): %d unit  (Belum Diambil: %d)" % [_curr_food, pending_food]
 	if info_storage_log_label:
-		info_storage_log_label.text = "🪵 Lumber (Log): %d units  (Uncollected: %d)" % [_curr_log, pending_log]
+		info_storage_log_label.text = "🪵 Hasil Hutan (Bambu): %d unit  (Belum Diambil: %d)" % [_curr_log, pending_log]
 	if info_storage_gold_label:
 		if total_maint > 0:
-			info_storage_gold_label.text = "💰 Gold Treasury: %d Gold  (Maint Cost: -%d/mo)" % [_curr_gold, total_maint]
+			info_storage_gold_label.text = "💰 Perbendaharaan Emas: %d Emas  (Biaya Pemeliharaan: -%d/bln)" % [_curr_gold, total_maint]
 		else:
-			info_storage_gold_label.text = "💰 Gold Treasury: %d Gold" % _curr_gold
+			info_storage_gold_label.text = "💰 Perbendaharaan Emas: %d Emas" % _curr_gold
 
 	if tax_rate_label:
-		var tax_title = "Normal"
-		if _curr_tax > 150: tax_title = "Very High"
-		elif _curr_tax > 100: tax_title = "High"
-		elif _curr_tax < 50: tax_title = "Very Low"
-		elif _curr_tax < 100: tax_title = "Low"
-		tax_rate_label.text = "Tax Rate: %d%% (%s)" % [_curr_tax, tax_title]
+		var tax_title = "Wajar"
+		if _curr_tax > 150: tax_title = "Sangat Tinggi"
+		elif _curr_tax > 100: tax_title = "Tinggi"
+		elif _curr_tax < 50: tax_title = "Sangat Rendah"
+		elif _curr_tax < 100: tax_title = "Rendah"
+		tax_rate_label.text = "Tingkat Upeti: %d%% (%s)" % [_curr_tax, tax_title]
 
 	if tax_desc_label:
 		if _curr_tax == 100:
-			tax_desc_label.text = "Neutral Tax: Standard gold revenue per house. Normal happiness."
+			tax_desc_label.text = "Upeti Wajar: Pendapatan emas standar per wisma. Kebahagiaan normal."
 		elif _curr_tax > 100:
 			var pen = int(round((_curr_tax - 100) * 0.5))
-			tax_desc_label.text = "Higher Tax (+%d%% revenue): Apply -%d%% happiness penalty! Long-term low happiness (<40%%) causes abandonment." % [_curr_tax - 100, pen]
+			tax_desc_label.text = "Upeti Tinggi (+%d%% pendapatan): Dikenakan denda kebahagiaan -%d%%! Kebahagiaan rendah berlanjut (<40%%) menyebabkan wisma ditinggalkan." % [_curr_tax - 100, pen]
 		else:
 			var bon = int(round((100 - _curr_tax) * 0.5))
-			tax_desc_label.text = "Lower Tax (-%d%% revenue): Boosts citizen happiness by +%d%%!" % [100 - _curr_tax, bon]
+			tax_desc_label.text = "Upeti Rendah (-%d%% pendapatan): Meningkatkan kebahagiaan warga sebesar +%d%%!" % [100 - _curr_tax, bon]

@@ -13,9 +13,16 @@ var status: Status = Status.DISCONNECTED
 
 var active_collectors: Array[Node2D] = []
 var collection_queue: Array[Node2D] = []
+var scan_timer: float = 0.0
 
 func _ready() -> void:
 	pass
+
+func _process(delta: float) -> void:
+	scan_timer += delta
+	if scan_timer >= 1.0:
+		scan_timer = 0.0
+		_scan_and_process_resource_collections()
 
 func set_status(status_text: String, _desc: String) -> void:
 	if status_text == "Connected":
@@ -24,13 +31,12 @@ func set_status(status_text: String, _desc: String) -> void:
 		status = Status.DISCONNECTED
 
 func get_info_text() -> String:
-	var active_count: int = 0
-	for c in active_collectors:
-		if is_instance_valid(c):
-			active_count += 1
-	return "Status: %s\nCollectors: %d/%d\nQueued: %d" % [
-		Status.keys()[status],
-		active_count,
+	_cleanup_active_collectors()
+	_cleanup_queue()
+	var status_str = "Aktif" if status == Status.ACTIVE else "Terputus"
+	return "Status: %s\nPengangkut: %d/%d\nDalam Antrean: %d" % [
+		status_str,
+		active_collectors.size(),
 		MAX_COLLECTORS,
 		collection_queue.size()
 	]
@@ -43,20 +49,27 @@ func request_collection(resource_building: Node2D) -> bool:
 
 	# Clean dead references
 	_cleanup_active_collectors()
+	_cleanup_queue()
 
 	# Check if already targetted by an active collector
-	for collector in active_collectors:
-		if "target_resource_building" in collector and collector.target_resource_building == resource_building:
-			return true
+	if _is_targeted_by_collector(resource_building):
+		if "is_collection_pending" in resource_building:
+			resource_building.is_collection_pending = true
+		return true
 
 	# Check if already in queue
 	if collection_queue.has(resource_building):
+		if "is_collection_pending" in resource_building:
+			resource_building.is_collection_pending = true
 		return true
 
 	# Check path connection
 	var path_cells := _get_path_to_building(resource_building)
 	if path_cells.is_empty():
 		return false # Cannot collect if no path exists
+
+	if "is_collection_pending" in resource_building:
+		resource_building.is_collection_pending = true
 
 	if active_collectors.size() < MAX_COLLECTORS:
 		_dispatch_collector(resource_building, path_cells)
@@ -65,17 +78,58 @@ func request_collection(resource_building: Node2D) -> bool:
 
 	return true
 
+func _scan_and_process_resource_collections() -> void:
+	_cleanup_active_collectors()
+	_cleanup_queue()
+
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return
+	var pm = tree.root.find_child("PlacementManager", true, false)
+	if pm == null:
+		return
+	var registry = pm.get_node_or_null("BuildingRegistry")
+	if registry == null:
+		return
+
+	# Query all resource-type buildings
+	var resource_buildings = registry.get_buildings_with_type(BuildingData.BuildingType.RESOURCE)
+	for res in resource_buildings:
+		if not is_instance_valid(res):
+			continue
+		
+		# Skip field tiles (which have id == "ricefield_field" or "lumberjack_field")
+		var is_field: bool = false
+		if res.has_meta("data"):
+			var d = res.get_meta("data")
+			if d is BuildingData and (d.id.ends_with("_field") or d.id == "ricefield_field"):
+				is_field = true
+		if is_field:
+			continue
+
+		var storage_count: int = 0
+		if "storage" in res:
+			storage_count = res.storage
+
+		if storage_count > 0:
+			if not _is_targeted_by_collector(res) and not collection_queue.has(res):
+				var path_cells := _get_path_to_building(res)
+				if not path_cells.is_empty():
+					if "is_collection_pending" in res:
+						res.is_collection_pending = true
+					collection_queue.append(res)
+
+	_process_queue()
+
 func _dispatch_collector(resource_building: Node2D, path_cells: Array[Vector2i]) -> void:
 	var land_layer = _get_land_layer()
-	if land_layer == null:
+	if land_layer == null or path_cells.is_empty():
 		return
 
 	var world_points: Array[Vector2] = []
-	world_points.append(global_position)
 	for cell in path_cells:
 		var local_pos: Vector2 = land_layer.map_to_local(cell)
 		world_points.append(land_layer.to_global(local_pos))
-	world_points.append(resource_building.global_position)
 
 	var collector_node := collector_scene.instantiate() as Node2D
 	get_parent().add_child(collector_node)
@@ -100,22 +154,44 @@ func on_collector_returned(collector: Node2D, resource_type: String, amount: int
 		active_collectors.erase(collector)
 
 	_cleanup_active_collectors()
+	_cleanup_queue()
 
 	# Deposit any remaining resources directly into global inventory
 	if amount > 0:
 		deposit_resource(resource_type, amount)
 
-	# Service the next item in the collection queue
+	# Service the next items in the collection queue
 	_process_queue()
 
 func _process_queue() -> void:
+	_cleanup_active_collectors()
+	_cleanup_queue()
+
 	while not collection_queue.is_empty() and active_collectors.size() < MAX_COLLECTORS:
 		var next_building = collection_queue.pop_front()
 		if is_instance_valid(next_building):
+			var storage_count: int = 0
+			if "storage" in next_building:
+				storage_count = next_building.storage
+
+			if storage_count <= 0:
+				if "is_collection_pending" in next_building:
+					next_building.is_collection_pending = false
+				continue
+
 			var path_cells := _get_path_to_building(next_building)
 			if not path_cells.is_empty():
 				_dispatch_collector(next_building, path_cells)
-				break
+			else:
+				if "is_collection_pending" in next_building:
+					next_building.is_collection_pending = false
+
+func _is_targeted_by_collector(resource_building: Node2D) -> bool:
+	for collector in active_collectors:
+		if is_instance_valid(collector) and "target_resource_building" in collector:
+			if collector.target_resource_building == resource_building:
+				return true
+	return false
 
 func _cleanup_active_collectors() -> void:
 	var valid_collectors: Array[Node2D] = []
@@ -123,6 +199,13 @@ func _cleanup_active_collectors() -> void:
 		if is_instance_valid(c):
 			valid_collectors.append(c)
 	active_collectors = valid_collectors
+
+func _cleanup_queue() -> void:
+	var valid_queue: Array[Node2D] = []
+	for b in collection_queue:
+		if is_instance_valid(b) and not valid_queue.has(b):
+			valid_queue.append(b)
+	collection_queue = valid_queue
 
 func _get_path_to_building(target_building: Node2D) -> Array[Vector2i]:
 	var tree := get_tree()
@@ -147,3 +230,4 @@ func _get_main_node() -> Node:
 	if tree == null or tree.root == null:
 		return null
 	return tree.root.find_child("Main", true, false)
+
