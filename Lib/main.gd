@@ -201,4 +201,3 @@ func _check_progression_unlocks(curr_pop: int, pm: Node) -> void:
 				elif b_data.requires_townhall:
 					desc = "Terbuka setelah mendirikan Balai Kota!"
 				ui_manager.show_toast("🎉 TERBUKA: %s" % b_data.display_name, desc)
-

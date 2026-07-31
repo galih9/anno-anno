@@ -105,10 +105,32 @@ var _bench_bonus:    float      = 0.0
 var tax_modifier:    float      = 0.0
 var _low_happiness_timer: float = 0.0
 
+# ─── Visuals & Nodes ──────────────────────────────────────────────────────────
+
+@onready var building_sprite: Sprite2D = get_node_or_null("Building")
+@onready var preview_sprite: Sprite2D = get_node_or_null("Preview")
+
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
-	pass
+	var pm = _get_placement_manager()
+	var in_build_mode: bool = pm.is_build_mode() if (pm and pm.has_method("is_build_mode")) else false
+	set_build_mode_preview(in_build_mode)
+	if pm and pm.has_signal("build_mode_changed"):
+		if not pm.build_mode_changed.is_connected(set_build_mode_preview):
+			pm.build_mode_changed.connect(set_build_mode_preview)
+
+func set_build_mode_preview(in_build_mode: bool) -> void:
+	if building_sprite:
+		building_sprite.visible = not in_build_mode
+	if preview_sprite:
+		preview_sprite.visible = in_build_mode
+
+func _get_placement_manager() -> Node:
+	if get_tree() and get_tree().root:
+		return get_tree().root.find_child("PlacementManager", true, false)
+	return null
+
 
 func _process(delta: float) -> void:
 	if is_upgrading:
@@ -220,9 +242,10 @@ func _finish_upgrade() -> void:
 	var tier_name = get_tier_name(level)
 	_show_floating_text("Ditingkatkan ke %s! 🏠✨" % tier_name, Color(0.3, 0.9, 1.0))
 
-	var sprite = get_node_or_null("Sprite2D")
-	if sprite:
-		sprite.modulate = Color(1.15, 1.15, 1.3)
+	if building_sprite:
+		building_sprite.modulate = Color(1.15, 1.15, 1.3)
+	if preview_sprite:
+		preview_sprite.modulate = Color(1.15, 1.15, 1.3)
 
 	var tree := get_tree()
 	if tree != null and tree.root != null:

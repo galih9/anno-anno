@@ -2,10 +2,17 @@
 
 [ext_resource type="Texture2D" uid="uid://dfoigkwiyy7ss" path="res://Assets/house_sprite.png" id="1_hfkix"]
 [ext_resource type="Script" uid="uid://dc3plxyyfiib1" path="res://Scenes/Residential/House/house.gd" id="1_x6o7t"]
+[ext_resource type="Texture2D" uid="uid://bhrq1vsyfpmrv" path="res://Assets/render/rumah.png" id="2_y0a4k"]
+
 [node name="House" type="Node2D" unique_id=1371187133]
 y_sort_enabled = true
 script = ExtResource("1_x6o7t")
 
-[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1396011512]
+[node name="Building" type="Sprite2D" parent="." unique_id=431165829]
+z_index = 1
+position = Vector2(0, -24)
+texture = ExtResource("2_y0a4k")
+
+[node name="Preview" type="Sprite2D" parent="." unique_id=1396011512]
 position = Vector2(0, -8)
 texture = ExtResource("1_hfkix")

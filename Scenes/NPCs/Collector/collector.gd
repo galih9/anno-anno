@@ -1,7 +1,7 @@
 # collector.gd
 # NPC collector script.
 # Moves along pathway positions to collect resources from a Resource building
-# and return them to the Restaurant. Includes transfer rate per tick.
+# and return them to the Restaurant/Townhall.
 
 extends Node2D
 
@@ -17,7 +17,7 @@ const SPEED: float = 15.0 # Moderate/slow movement speed in pixels per second
 var path_world_points: Array[Vector2] = []
 var current_waypoint_idx: int = 0
 
-# States: "IDLE", "MOVING_TO_RESOURCE", "TRANSFER_IN", "MOVING_TO_RESTAURANT", "TRANSFER_OUT", "FINISHED"
+# States: "IDLE", "MOVING_TO_RESOURCE", "TRANSFER_IN", "MOVING_TO_RESTAURANT", "FINISHED"
 var state: String = "IDLE"
 
 var target_resource_building: Node2D = null
@@ -47,14 +47,10 @@ func _process(delta: float) -> void:
 			_process_movement(delta)
 		"TRANSFER_IN":
 			_process_transfer_in(delta)
-		"TRANSFER_OUT":
-			_process_transfer_out(delta)
 
 func process_tick() -> void:
 	if state == "TRANSFER_IN":
 		_do_transfer_in_tick()
-	elif state == "TRANSFER_OUT":
-		_do_transfer_out_tick()
 
 func _process_movement(delta: float) -> void:
 	if path_world_points.is_empty() or current_waypoint_idx >= path_world_points.size():
@@ -87,11 +83,15 @@ func _update_animation(dir: Vector2) -> void:
 	if sprite == null:
 		return
 
+	var is_carrying: bool = carrying_amount > 0
+
 	if dir.y < 0:
-		sprite.animation = &"move_ne"
-		sprite.flip_h = (dir.x < 0)
+		sprite.animation = &"carry_ne" if is_carrying else &"move_ne"
+		# Inverted flip for NE/NW sprite orientation
+		sprite.flip_h = (dir.x > 0)
 	else:
-		sprite.animation = &"move_se"
+		sprite.animation = &"carry_se" if is_carrying else &"move_se"
+		# Normal flip for SE/SW sprite orientation
 		sprite.flip_h = (dir.x < 0)
 
 	if not sprite.is_playing():
@@ -112,16 +112,10 @@ func _on_reached_leg_end() -> void:
 
 	elif state == "MOVING_TO_RESTAURANT":
 		if carrying_amount > 0:
-			state = "TRANSFER_OUT"
-			transfer_timer = 0.0
-			visible = false
-			if sprite != null:
-				sprite.stop()
-			_update_label()
-			# Perform initial transfer tick
-			_do_transfer_out_tick()
-		else:
-			_finish_return()
+			if is_instance_valid(home_restaurant) and home_restaurant.has_method("deposit_resource"):
+				home_restaurant.deposit_resource(carrying_resource_type, carrying_amount)
+			carrying_amount = 0
+		_finish_return()
 
 func _process_transfer_in(delta: float) -> void:
 	transfer_timer += delta
@@ -171,26 +165,6 @@ func _start_return_leg() -> void:
 		sprite.play()
 	_update_label()
 
-func _process_transfer_out(delta: float) -> void:
-	transfer_timer += delta
-	if transfer_timer >= transfer_tick_time:
-		transfer_timer -= transfer_tick_time
-		_do_transfer_out_tick()
-
-func _do_transfer_out_tick() -> void:
-	if state != "TRANSFER_OUT":
-		return
-
-	if carrying_amount > 0:
-		var to_deposit: int = min(items_per_tick, carrying_amount)
-		carrying_amount -= to_deposit
-		if is_instance_valid(home_restaurant) and home_restaurant.has_method("deposit_resource"):
-			home_restaurant.deposit_resource(carrying_resource_type, to_deposit)
-		_update_label()
-
-	if carrying_amount <= 0:
-		_finish_return()
-
 func _finish_return() -> void:
 	state = "FINISHED"
 	if is_instance_valid(target_resource_building) and "is_collection_pending" in target_resource_building:
@@ -206,13 +180,6 @@ func _update_label() -> void:
 	match state:
 		"TRANSFER_IN":
 			status_label.text = "Mengambil... (%d)" % carrying_amount
-		"TRANSFER_OUT":
-			status_label.text = "Menaruh... (%d)" % carrying_amount
-		"MOVING_TO_RESTAURANT":
-			if carrying_amount > 0:
-				var res_name = "Bambu" if carrying_resource_type == "log" else ("Talas" if carrying_resource_type == "food" else carrying_resource_type.capitalize())
-				status_label.text = "%d %s" % [carrying_amount, res_name]
-			else:
-				status_label.text = ""
 		_:
 			status_label.text = ""
+

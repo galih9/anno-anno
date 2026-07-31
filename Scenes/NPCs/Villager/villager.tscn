@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cld4wiwdlgocr"]
+
+[ext_resource type="Script" uid="uid://sjdty078i0mj" path="res://Scenes/NPCs/Villager/villager.gd" id="1_8f8nv"]
+
+[node name="Villager" type="Node2D" unique_id=275082116]
+script = ExtResource("1_8f8nv")

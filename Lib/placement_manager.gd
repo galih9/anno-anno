@@ -32,6 +32,7 @@ extends Node
 signal building_selected(building: Node2D, data: BuildingData)
 signal building_deselected()
 signal demolish_mode_changed(enabled: bool)
+signal build_mode_changed(enabled: bool)
 
 # ─── Exports ──────────────────────────────────────────────────────────────────
 
@@ -208,6 +209,8 @@ func exit_build_mode() -> void:
 		preview.set_preview_visible(false)
 	if _influence_overlay != null:
 		_influence_overlay.deactivate()
+	build_mode_changed.emit(false)
+	_notify_buildings_build_mode(false)
 	print("PlacementManager ▸ Build mode OFF")
 
 
@@ -299,6 +302,8 @@ func _handle_build_toggle() -> void:
 		preview.set_preview_visible(false)
 		if _influence_overlay != null:
 			_influence_overlay.deactivate()
+	build_mode_changed.emit(_build_mode)
+	_notify_buildings_build_mode(_build_mode)
 	print("PlacementManager ▸ build mode: %s" % ("ON" if _build_mode else "OFF"))
 
 
@@ -326,11 +331,15 @@ func start_placement(data: BuildingData) -> void:
 	_base_data      = data
 	_current_data   = data
 	_rotation_index = -1
+	var was_in_build_mode = _build_mode
 	_build_mode = true
 	preview.set_demolish_mode(false)
 	preview.set_preview_visible(true)
 	preview.set_building(_current_data)
 	preview.set_rotation_deg(0.0)
+	if not was_in_build_mode:
+		build_mode_changed.emit(true)
+		_notify_buildings_build_mode(true)
 	print("PlacementManager ▸ selected: %s" % _current_data.display_name)
 
 # ─── Selection Public API ──────────────────────────────────────────────────────
@@ -482,12 +491,15 @@ func _handle_post_placement() -> void:
 		return
 	var type = _current_data.building_type
 	if type != BuildingData.BuildingType.CONNECTOR and type != BuildingData.BuildingType.RESIDENT and type != BuildingData.BuildingType.COSMETIC:
-		_build_mode = false
-		preview.set_preview_visible(false)
-		if _influence_overlay != null:
-			_influence_overlay.deactivate()
-		_base_data = null
-		_current_data = null
+		exit_build_mode()
+
+func _notify_buildings_build_mode(in_build_mode: bool) -> void:
+	if registry == null:
+		return
+	var all_buildings = registry.get_all_buildings()
+	for b in all_buildings:
+		if is_instance_valid(b) and b.has_method("set_build_mode_preview"):
+			b.set_build_mode_preview(in_build_mode)
 
 
 func _try_place_ricefield() -> void:
