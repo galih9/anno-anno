@@ -245,7 +245,7 @@ outline_color = Color(0, 0, 0, 1)
 script = ExtResource("1_cgiur")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1711100925]
-position = Vector2(-4.7683716e-07, 0)
+position = Vector2(-4.7683716e-07, -3)
 sprite_frames = SubResource("SpriteFrames_mv58x")
 animation = &"carry_ne"
 

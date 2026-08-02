@@ -251,20 +251,58 @@ func is_demolish_mode() -> bool:
 	return _demolish_mode
 
 
+func _is_pathway_cell(cell: Vector2i) -> bool:
+	if _land_layer == null:
+		return false
+	var tile_data: TileData = _land_layer.get_cell_tile_data(cell)
+	return tile_data != null and tile_data.terrain_set == 0 and tile_data.terrain == 2
+
+
+const SURROUNDING_DIRECTIONS: Array[Vector2i] = [
+	Vector2i( 1,  0), Vector2i(-1,  0), Vector2i( 0,  1), Vector2i( 0, -1),
+	Vector2i( 1,  1), Vector2i(-1,  1), Vector2i( 1, -1), Vector2i(-1, -1)
+]
+
+func _remove_pathway_at_cell(cell: Vector2i) -> void:
+	if _land_layer == null:
+		return
+
+	# Explicitly revert target cell to Land tile (source 1, atlas coords (0,0))
+	_land_layer.set_cell(cell, 1, Vector2i(0, 0))
+
+	# Find surrounding pathway cells to recalculate their autotiling shapes
+	var surrounding_pathways: Array[Vector2i] = []
+	for dir in SURROUNDING_DIRECTIONS:
+		var neighbor_cell: Vector2i = cell + dir
+		if _is_pathway_cell(neighbor_cell):
+			surrounding_pathways.append(neighbor_cell)
+
+	if not surrounding_pathways.is_empty():
+		_land_layer.set_cells_terrain_connect(surrounding_pathways, 0, 2, true)
+
+	connection_checker.update_all_connections()
+
+
 func _try_demolish_at_cell(cell: Vector2i, is_drag: bool) -> void:
 	var building: Node2D = registry.get_building_at(cell)
-	if building == null or not is_instance_valid(building):
-		return
+	var is_path_tile: bool = _is_pathway_cell(cell)
 
 	if is_drag:
 		# Drag demolish mode: ONLY demolish pathways (connectors). Regular buildings are excluded!
-		if _is_pathway(building):
+		if building != null and is_instance_valid(building) and _is_pathway(building):
 			remove_building(building)
+			_update_hover()
+		elif is_path_tile:
+			_remove_pathway_at_cell(cell)
 			_update_hover()
 	else:
 		# Single click demolish mode: Demolish ANY building or pathway in one click!
-		remove_building(building)
-		_update_hover()
+		if building != null and is_instance_valid(building):
+			remove_building(building)
+			_update_hover()
+		elif is_path_tile:
+			_remove_pathway_at_cell(cell)
+			_update_hover()
 
 
 func _is_pathway(building: Node2D) -> bool:
@@ -447,6 +485,20 @@ func _update_hover() -> void:
 func _try_place_building() -> void:
 	if not _placement_valid or _current_data == null:
 		return
+
+	# Handle connector (Pathway) placing directly onto TileMapLayer terrain (set 0, terrain 2)
+	if _current_data.is_connector or _current_data.building_type == BuildingData.BuildingType.CONNECTOR:
+		_land_layer.set_cells_terrain_connect([_hovered_cell], 0, 2, true)
+		connection_checker.update_all_connections()
+
+		var main_node = get_parent()
+		if "gold" in main_node:
+			main_node.gold -= _current_data.cost
+
+		print("PlacementManager ▸ placed pathway tile at %s" % _hovered_cell)
+		_handle_post_placement()
+		return
+
 	if _current_data.scene == null:
 		push_warning("PlacementManager: BuildingData '%s' has no scene assigned." % _current_data.display_name)
 		return
@@ -571,13 +623,26 @@ func _is_footprint_placeable(footprint: Array[Vector2i]) -> bool:
 		if _current_data.id == "house" and "log" in main_node and main_node.log < 10:
 			return false
 
+	var is_connector_placement: bool = (_current_data != null and (_current_data.is_connector or _current_data.building_type == BuildingData.BuildingType.CONNECTOR))
+
 	for cell in footprint:
 		if registry.is_occupied(cell):
+			if is_connector_placement:
+				return false
 			if not _is_ricefield_field(registry.get_building_at(cell)):
 				return false
 		var tile_data: TileData = _land_layer.get_cell_tile_data(cell)
-		if tile_data == null or tile_data.terrain != 0:
+		if tile_data == null:
 			return false
+
+		if is_connector_placement:
+			# Pathway can be placed on Land (terrain 0) or existing Pathway (terrain 2)
+			if tile_data.terrain != 0 and tile_data.terrain != 2:
+				return false
+		else:
+			# Non-pathway buildings can ONLY be placed on Land (terrain 0)
+			if tile_data.terrain != 0:
+				return false
 	return true
 
 

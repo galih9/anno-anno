@@ -51,6 +51,30 @@ func _get_data(node: Node2D) -> BuildingData:
 		return prop as BuildingData
 	return null
 
+func _get_land_layer() -> TileMapLayer:
+	var main_node = _get_main_node()
+	if main_node != null:
+		var layer = main_node.find_child("LandLayer", true, false)
+		if layer is TileMapLayer:
+			return layer as TileMapLayer
+	return null
+
+## Returns true if [param cell] is a pathway connector — either a TileMapLayer Pathway terrain (set 0, terrain 2)
+## or a legacy Node2D connector building registered in BuildingRegistry.
+func _is_connector_at_cell(cell: Vector2i) -> bool:
+	var land_layer = _get_land_layer()
+	if land_layer != null:
+		var tile_data: TileData = land_layer.get_cell_tile_data(cell)
+		if tile_data != null and tile_data.terrain_set == 0 and tile_data.terrain == 2:
+			return true
+	if registry != null:
+		var building = registry.get_building_at(cell)
+		if building != null:
+			var data = _get_data(building)
+			if data != null and data.is_connector:
+				return true
+	return false
+
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 ## Re-evaluate and update every building that [needs_connection],
@@ -87,47 +111,42 @@ func check_building_connection(building: Node2D) -> Dictionary:
 	var occupied: Dictionary = registry.get_occupied_dict()
 	var building_cells: Array[Vector2i] = registry.get_cells_of(building)
 
-	# ── Step 1: collect connector tiles directly adjacent to this building ──
-	var frontier: Array[Node2D] = _get_adjacent_connectors(building_cells, building, occupied)
+	# ── Step 1: collect connector cells directly adjacent to this building ──
+	var frontier: Array[Vector2i] = _get_adjacent_connector_cells(building_cells, building)
 	if frontier.is_empty():
 		return { "status": "Disconnected", "desc": "no path adjacent" }
 
 	# If this building IS the destination, touching a path is enough.
-	if _get_data(building).is_destination:
+	var b_data := _get_data(building)
+	if b_data != null and b_data.is_destination:
 		return { "status": "Connected", "desc": "active" }
 
 	# ── Step 2: BFS through the connector network ───────────────────────────
 	var visited: Dictionary = {}
-	var queue: Array[Node2D] = []
+	var queue: Array[Vector2i] = []
 
-	for connector in frontier:
-		if not visited.has(connector):
-			visited[connector] = true
-			queue.append(connector)
+	for cell in frontier:
+		visited[cell] = true
+		queue.append(cell)
 
 	while not queue.is_empty():
-		var current: Node2D = queue.pop_front()
-		var current_cells: Array[Vector2i] = registry.get_cells_of(current)
+		var current_cell: Vector2i = queue.pop_front()
 
-		for cell in current_cells:
-			for dir in CARDINAL:
-				var neighbor_cell: Vector2i = cell + dir
-				if not occupied.has(neighbor_cell):
-					continue
+		for dir in CARDINAL:
+			var neighbor_cell: Vector2i = current_cell + dir
+
+			# Check if neighbor_cell contains a destination building
+			if occupied.has(neighbor_cell):
 				var neighbor: Node2D = occupied[neighbor_cell]
-				if neighbor == current or neighbor == building:
-					continue
+				if neighbor != building:
+					var data: BuildingData = _get_data(neighbor)
+					if data != null and data.is_destination:
+						return { "status": "Connected", "desc": "activated" }
 
-				var data: BuildingData = _get_data(neighbor)
-				if data == null:
-					continue
-
-				if data.is_destination:
-					return { "status": "Connected", "desc": "activated" }
-
-				if data.is_connector and not visited.has(neighbor):
-					visited[neighbor] = true
-					queue.append(neighbor)
+			# Check if neighbor_cell is a pathway connector
+			if _is_connector_at_cell(neighbor_cell) and not visited.has(neighbor_cell):
+				visited[neighbor_cell] = true
+				queue.append(neighbor_cell)
 
 	return { "status": "Disconnected", "desc": "path not connected to destination" }
 
@@ -217,8 +236,6 @@ func _get_main_node() -> Node:
 		return null
 	return tree.root.find_child("Main", true, false)
 
-
-
 ## Returns true if any cell in [param target_cells] is within [param radius]
 ## Chebyshev tiles of any cell in [param source_cells].
 func _is_within_radius(
@@ -235,31 +252,28 @@ func _is_within_radius(
 
 # ─── Private helpers ──────────────────────────────────────────────────────────
 
-func _get_adjacent_connectors(
+func _get_adjacent_connector_cells(
 	building_cells: Array[Vector2i],
-	building: Node2D,
-	occupied: Dictionary
-) -> Array[Node2D]:
-	var result: Array[Node2D] = []
+	building: Node2D
+) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
 	var seen: Dictionary = {}
 
 	for cell in building_cells:
 		for dir in CARDINAL:
 			var neighbor_cell: Vector2i = cell + dir
-			if not occupied.has(neighbor_cell):
+			if seen.has(neighbor_cell):
 				continue
-			var neighbor: Node2D = occupied[neighbor_cell]
-			if neighbor == building or seen.has(neighbor):
+
+			# Don't consider cells occupied by the building itself
+			if registry != null and registry.get_building_at(neighbor_cell) == building:
 				continue
-			var data: BuildingData = _get_data(neighbor)
-			if data == null:
-				continue
-			if data.is_connector:
-				seen[neighbor] = true
-				result.append(neighbor)
+
+			if _is_connector_at_cell(neighbor_cell):
+				seen[neighbor_cell] = true
+				result.append(neighbor_cell)
 
 	return result
-
 
 # ─── Ricefield helpers ────────────────────────────────────────────────────────
 
@@ -314,7 +328,6 @@ func find_path(from_building: Node2D, to_building: Node2D) -> Array[Vector2i]:
 	if registry == null or from_building == null or to_building == null:
 		return []
 
-	var occupied: Dictionary = registry.get_occupied_dict()
 	var start_cells: Array[Vector2i] = registry.get_cells_of(from_building)
 	var end_cells: Array[Vector2i] = registry.get_cells_of(to_building)
 	if start_cells.is_empty() or end_cells.is_empty():
@@ -324,7 +337,7 @@ func find_path(from_building: Node2D, to_building: Node2D) -> Array[Vector2i]:
 	for c in end_cells:
 		end_cell_set[c] = true
 
-	var initial_connectors: Array[Node2D] = _get_adjacent_connectors(start_cells, from_building, occupied)
+	var initial_connectors: Array[Vector2i] = _get_adjacent_connector_cells(start_cells, from_building)
 	if initial_connectors.is_empty():
 		return []
 
@@ -332,12 +345,9 @@ func find_path(from_building: Node2D, to_building: Node2D) -> Array[Vector2i]:
 	var visited: Dictionary = {}
 	var parent: Dictionary = {}
 
-	for connector in initial_connectors:
-		var c_cells = registry.get_cells_of(connector)
-		for cell in c_cells:
-			if not visited.has(cell):
-				visited[cell] = true
-				queue.append(cell)
+	for cell in initial_connectors:
+		visited[cell] = true
+		queue.append(cell)
 
 	var target_cell: Vector2i = Vector2i.MIN
 	var found: bool = false
@@ -358,11 +368,8 @@ func find_path(from_building: Node2D, to_building: Node2D) -> Array[Vector2i]:
 			var neighbor_cell: Vector2i = current_cell + dir
 			if visited.has(neighbor_cell):
 				continue
-			if not occupied.has(neighbor_cell):
-				continue
-			var building: Node2D = occupied[neighbor_cell]
-			var data: BuildingData = _get_data(building)
-			if data != null and data.is_connector:
+
+			if _is_connector_at_cell(neighbor_cell):
 				visited[neighbor_cell] = true
 				parent[neighbor_cell] = current_cell
 				queue.append(neighbor_cell)
