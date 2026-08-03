@@ -50,7 +50,7 @@ func _ready() -> void:
 	add_child(timer)
 	timer.timeout.connect(_on_resource_tick)
 
-	var ui = load("res://Lib/ui_manager.gd").new()
+	var ui = load("res://Lib/ui/ui_manager.gd").new()
 	ui.name = "UIManager"
 	add_child(ui)
 

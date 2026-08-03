@@ -488,7 +488,16 @@ func _try_place_building() -> void:
 
 	# Handle connector (Pathway) placing directly onto TileMapLayer terrain (set 0, terrain 2)
 	if _current_data.is_connector or _current_data.building_type == BuildingData.BuildingType.CONNECTOR:
-		_land_layer.set_cells_terrain_connect([_hovered_cell], 0, 2, true)
+		# Build the cell list: the new cell PLUS all cardinal neighbors that are
+		# already pathway tiles.  Passing them together lets set_cells_terrain_connect
+		# recalculate every affected tile's autotile bitmask in one call, so
+		# intersections and T-junctions appear immediately without a second click.
+		var cells_to_update: Array[Vector2i] = [_hovered_cell]
+		for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var neighbor: Vector2i = _hovered_cell + dir
+			if _is_pathway_cell(neighbor):
+				cells_to_update.append(neighbor)
+		_land_layer.set_cells_terrain_connect(cells_to_update, 0, 2, true)
 		connection_checker.update_all_connections()
 
 		var main_node = get_parent()
@@ -626,21 +635,23 @@ func _is_footprint_placeable(footprint: Array[Vector2i]) -> bool:
 	var is_connector_placement: bool = (_current_data != null and (_current_data.is_connector or _current_data.building_type == BuildingData.BuildingType.CONNECTOR))
 
 	for cell in footprint:
-		if registry.is_occupied(cell):
-			if is_connector_placement:
-				return false
-			if not _is_ricefield_field(registry.get_building_at(cell)):
-				return false
 		var tile_data: TileData = _land_layer.get_cell_tile_data(cell)
 		if tile_data == null:
 			return false
 
 		if is_connector_placement:
-			# Pathway can be placed on Land (terrain 0) or existing Pathway (terrain 2)
-			if tile_data.terrain != 0 and tile_data.terrain != 2:
+			# Pathway can only be placed on Land (terrain 0).
+			# Terrain 2 means a pathway already exists — block placement so we
+			# don't charge gold or re-stamp the same tile.
+			if tile_data.terrain == 2:
+				return false
+			if tile_data.terrain != 0:
 				return false
 		else:
 			# Non-pathway buildings can ONLY be placed on Land (terrain 0)
+			if registry.is_occupied(cell):
+				if not _is_ricefield_field(registry.get_building_at(cell)):
+					return false
 			if tile_data.terrain != 0:
 				return false
 	return true

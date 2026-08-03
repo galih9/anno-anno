@@ -6,9 +6,15 @@
 #   - Moving the cursor within EDGE_MARGIN pixels of any viewport edge
 #     pans the camera in that direction (speed scales with proximity)
 #   - Holding Right Mouse Button (RMB) drags/pans the camera view.
+#   - A quick RMB tap (no significant drag) emits right_click_tapped.
 #   - Control toggles for edge pan & RMB drag pan.
 
 extends Camera2D
+
+## Emitted when the player taps RMB without dragging the camera.
+## Consumers (e.g. UIManager) should connect to this instead of
+## listening to the raw MOUSE_BUTTON_RIGHT press.
+signal right_click_tapped
 
 # ─── Control Toggles ──────────────────────────────────────────────────────────
 
@@ -40,10 +46,18 @@ extends Camera2D
 ## Maximum pan speed in pixels/second (at the very edge of the screen).
 @export var pan_speed: float = 200.0
 
+# ─── Right-click pan / tap ────────────────────────────────────────────────────
+
+## Pixel distance the mouse must travel while RMB is held before the release
+## is considered a drag (pan) rather than a tap (open build menu).
+@export var right_click_drag_threshold: float = 6.0
+
 # ─── Internal ─────────────────────────────────────────────────────────────────
 
 var _target_zoom: float = 1.0
 var _is_dragging_rmb: bool = false
+var _rmb_press_pos: Vector2 = Vector2.ZERO
+var _rmb_total_drag: float = 0.0
 
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
 
@@ -65,8 +79,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			if mb.pressed:
 				if get_viewport().gui_get_hovered_control() == null:
 					_is_dragging_rmb = true
+					_rmb_press_pos = mb.position
+					_rmb_total_drag = 0.0
+					get_viewport().set_input_as_handled()
 			else:
+				# RMB released — decide tap vs drag.
+				if _is_dragging_rmb and _rmb_total_drag < right_click_drag_threshold:
+					right_click_tapped.emit()
+					get_viewport().set_input_as_handled()
 				_is_dragging_rmb = false
+				_rmb_total_drag = 0.0
 		elif mb.pressed:
 			if mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 				if get_viewport().gui_get_hovered_control() != null:
@@ -79,8 +101,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					get_viewport().set_input_as_handled()
 
 	elif event is InputEventMouseMotion and _is_dragging_rmb:
+		var mm := event as InputEventMouseMotion
+		_rmb_total_drag += mm.relative.length()
 		if enable_right_click_pan:
-			var mm := event as InputEventMouseMotion
 			position -= mm.relative / zoom.x
 			get_viewport().set_input_as_handled()
 
