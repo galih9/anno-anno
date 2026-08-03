@@ -23,3 +23,9 @@ func get_info_text() -> String:
 		status_str,
 		data.influence_radius if data else 5
 	]
+
+func get_current_warning() -> String:
+	if status == Status.DISCONNECTED:
+		return "disconnect"
+	return ""
+

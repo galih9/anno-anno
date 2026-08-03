@@ -16,12 +16,16 @@ var info_housing_label: Label
 
 var info_storage_food_label: Label
 var info_storage_log_label: Label
-var info_storage_gold_label: Label
 
 var tax_rate_label: Label
 var tax_desc_label: Label
 var tax_minus_btn: Button
 var tax_plus_btn: Button
+
+# Pause Menu UI
+var pause_panel: PanelContainer
+var edge_pan_checkbox: CheckBox
+var rmb_pan_checkbox: CheckBox
 
 var always_visible_gold_label: Label
 
@@ -53,12 +57,14 @@ var _curr_happiness: float = 1.0
 var _curr_tax: int = 100
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	font_settings.font = font
 	font_settings.font_size = 14
 	
 	_setup_hud_status_bar()
 	_setup_toast_container()
 	_setup_info_panel()
+	_setup_pause_menu()
 	_setup_building_modal()
 	_setup_demolish_banner()
 	_setup_hud_buttons()
@@ -208,7 +214,7 @@ func _setup_demolish_banner() -> void:
 	demolish_banner.add_theme_stylebox_override("panel", style)
 	
 	var lbl = Label.new()
-	lbl.text = "🔨 MODE BONGKAR  |  Klik: bongkar bangunan  |  Tahan & Geser: bongkar jalan  |  ESC / Klik Kanan: keluar"
+	lbl.text = "MODE BONGKAR  |  Klik: bongkar bangunan  |  Tahan & Geser: bongkar jalan  |  ESC / Klik Kanan: keluar"
 	var banner_font = LabelSettings.new()
 	banner_font.font = font
 	banner_font.font_size = 12
@@ -303,7 +309,7 @@ func _setup_building_modal() -> void:
 	main_vbox.add_child(modal_info_label)
 
 	modal_open_town_info_btn = Button.new()
-	modal_open_town_info_btn.text = "🏛️ Kelola Kebijakan Praja"
+	modal_open_town_info_btn.text = "Kelola Kebijakan Praja"
 	modal_open_town_info_btn.visible = false
 	modal_open_town_info_btn.add_theme_font_override("font", font)
 	modal_open_town_info_btn.pressed.connect(func():
@@ -386,13 +392,13 @@ func _update_modal_content() -> void:
 			var req = _selected_building_ref.get_upgrade_requirements()
 			info_str += "\n\n── SYARAT PENINGKATAN TIAR ──"
 			if "is_upgrading" in _selected_building_ref and _selected_building_ref.is_upgrading:
-				info_str += "\n [ 🛠️ Peningkatan sedang berlangsung... ]"
+				info_str += "\n [ Peningkatan sedang berlangsung... ]"
 			elif not req.max_tier_reached:
-				var rest_chk = " [✓] Pengaruh Gelanggang" if req.has_service_bonus else " [✗] Pengaruh Gelanggang"
-				var log_chk = " [✓] Kayu: %d/%d Bambu" % [_curr_log, req.log_cost] if req.has_logs else " [✗] Kayu: %d/%d Bambu" % [_curr_log, req.log_cost]
+				var rest_chk = " [V] Pengaruh Gelanggang" if req.has_service_bonus else " [X] Pengaruh Gelanggang"
+				var log_chk = " [V] Kayu: %d/%d Bambu" % [_curr_log, req.log_cost] if req.has_logs else " [X] Kayu: %d/%d Bambu" % [_curr_log, req.log_cost]
 				info_str += "\n Target: %s\n%s\n%s" % [req.next_tier_name, rest_chk, log_chk]
 			else:
-				info_str += "\n [ Tingkat Tertinggi Tercapai ✨ ]"
+				info_str += "\n [ Tingkat Tertinggi Tercapai ]"
 		modal_info_label.text = info_str
 	else:
 		modal_info_label.text = "Status tidak tersedia."
@@ -418,53 +424,52 @@ func _setup_info_panel() -> void:
 	info_panel = PanelContainer.new()
 	info_panel.visible = false
 	info_panel.z_index = 110
+	info_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	
-	info_panel.anchor_left = 0.5
-	info_panel.anchor_top = 0.5
-	info_panel.anchor_right = 0.5
-	info_panel.anchor_bottom = 0.5
-	info_panel.offset_left = -240
-	info_panel.offset_top = -270
-	info_panel.offset_right = 240
-	info_panel.offset_bottom = 270
-	info_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	info_panel.anchor_left = 1.0
+	info_panel.anchor_top = 0.0
+	info_panel.anchor_right = 1.0
+	info_panel.anchor_bottom = 1.0
+	info_panel.offset_left = -340
+	info_panel.offset_top = 0
+	info_panel.offset_right = 0
+	info_panel.offset_bottom = 0
+	info_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	info_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	
 	var panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.07, 0.1, 0.15, 0.95)
+	panel_style.bg_color = Color(0.08, 0.11, 0.16, 0.95)
 	panel_style.border_width_left = 2
-	panel_style.border_width_top = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_bottom = 2
-	panel_style.border_color = Color(0.3, 0.85, 1.0, 0.85)
+	panel_style.border_color = Color(0.2, 0.65, 0.9, 0.6)
 	panel_style.corner_radius_top_left = 12
-	panel_style.corner_radius_top_right = 12
 	panel_style.corner_radius_bottom_left = 12
-	panel_style.corner_radius_bottom_right = 12
-	panel_style.content_margin_left = 18
-	panel_style.content_margin_top = 16
-	panel_style.content_margin_right = 18
-	panel_style.content_margin_bottom = 16
+	panel_style.content_margin_left = 14
+	panel_style.content_margin_top = 14
+	panel_style.content_margin_right = 14
+	panel_style.content_margin_bottom = 14
 	info_panel.add_theme_stylebox_override("panel", panel_style)
 	
 	add_child(info_panel)
 	
 	var main_vbox = VBoxContainer.new()
-	main_vbox.add_theme_constant_override("separation", 8)
+	main_vbox.mouse_filter = Control.MOUSE_FILTER_STOP
+	main_vbox.add_theme_constant_override("separation", 10)
 	info_panel.add_child(main_vbox)
 	
 	var header_hbox = HBoxContainer.new()
+	header_hbox.mouse_filter = Control.MOUSE_FILTER_STOP
 	main_vbox.add_child(header_hbox)
 	
 	var title_vbox = VBoxContainer.new()
 	title_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_vbox.mouse_filter = Control.MOUSE_FILTER_STOP
 	header_hbox.add_child(title_vbox)
 	
 	var title = Label.new()
-	title.text = "🏛️ PENGELOLAAN PRAJA"
+	title.text = "PENGELOLAAN PRAJA"
 	var t_set = LabelSettings.new()
 	t_set.font = font
-	t_set.font_size = 15
+	t_set.font_size = 16
 	t_set.font_color = Color(0.3, 0.9, 1.0)
 	title.label_settings = t_set
 	title_vbox.add_child(title)
@@ -473,7 +478,7 @@ func _setup_info_panel() -> void:
 	sub.text = "Ikhtisar Wilayah, Lumbung & Kebijakan"
 	var s_set = LabelSettings.new()
 	s_set.font = font
-	s_set.font_size = 10
+	s_set.font_size = 9
 	s_set.font_color = Color(0.65, 0.75, 0.85)
 	sub.label_settings = s_set
 	title_vbox.add_child(sub)
@@ -528,21 +533,86 @@ func _setup_info_panel() -> void:
 	storage_header.label_settings = st_set
 	main_vbox.add_child(storage_header)
 	
-	var storage_vbox = VBoxContainer.new()
-	storage_vbox.add_theme_constant_override("separation", 5)
-	main_vbox.add_child(storage_vbox)
+	var storage_grid = GridContainer.new()
+	storage_grid.columns = 4
+	storage_grid.add_theme_constant_override("h_separation", 6)
+	storage_grid.add_theme_constant_override("v_separation", 6)
+	main_vbox.add_child(storage_grid)
 	
-	info_storage_food_label = Label.new()
-	info_storage_food_label.label_settings = font_settings
-	storage_vbox.add_child(info_storage_food_label)
-	
-	info_storage_log_label = Label.new()
-	info_storage_log_label.label_settings = font_settings
-	storage_vbox.add_child(info_storage_log_label)
-	
-	info_storage_gold_label = Label.new()
-	info_storage_gold_label.label_settings = font_settings
-	storage_vbox.add_child(info_storage_gold_label)
+	var card_style = StyleBoxFlat.new()
+	card_style.bg_color = Color(0.1, 0.14, 0.2, 0.85)
+	card_style.border_width_left = 1
+	card_style.border_width_top = 1
+	card_style.border_width_right = 1
+	card_style.border_width_bottom = 1
+	card_style.border_color = Color(0.25, 0.6, 0.8, 0.5)
+	card_style.corner_radius_top_left = 6
+	card_style.corner_radius_top_right = 6
+	card_style.corner_radius_bottom_left = 6
+	card_style.corner_radius_bottom_right = 6
+	card_style.content_margin_left = 4
+	card_style.content_margin_top = 6
+	card_style.content_margin_right = 4
+	card_style.content_margin_bottom = 6
+
+	var make_card = func(tex_path: String, title_str: String) -> Dictionary:
+		var card = PanelContainer.new()
+		card.custom_minimum_size = Vector2(70, 62)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.add_theme_stylebox_override("panel", card_style)
+		
+		var vbox = VBoxContainer.new()
+		vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		vbox.add_theme_constant_override("separation", 2)
+		card.add_child(vbox)
+		
+		var tex = TextureRect.new()
+		tex.texture = load(tex_path)
+		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tex.custom_minimum_size = Vector2(24, 24)
+		vbox.add_child(tex)
+		
+		var amt_lbl = Label.new()
+		amt_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var amt_set = LabelSettings.new()
+		amt_set.font = font
+		amt_set.font_size = 11
+		amt_set.font_color = Color(0.95, 0.95, 0.95)
+		amt_lbl.label_settings = amt_set
+		vbox.add_child(amt_lbl)
+		
+		var t_lbl = Label.new()
+		t_lbl.text = title_str
+		t_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var title_lbl_set = LabelSettings.new()
+		title_lbl_set.font = font
+		title_lbl_set.font_size = 8
+		title_lbl_set.font_color = Color(0.65, 0.75, 0.85)
+		t_lbl.label_settings = title_lbl_set
+		vbox.add_child(t_lbl)
+		
+		return {"card": card, "amount_label": amt_lbl}
+
+	# Slot 1: Talas
+	var talas_data = make_card.call("res://Assets/render/symbols/talas.png", "Talas")
+	info_storage_food_label = talas_data.amount_label
+	storage_grid.add_child(talas_data.card)
+
+	# Slot 2: Bambu
+	var bambu_data = make_card.call("res://Assets/render/symbols/bambu.png", "Bambu")
+	info_storage_log_label = bambu_data.amount_label
+	storage_grid.add_child(bambu_data.card)
+
+	# Slot 3: Batu
+	var batu_data = make_card.call("res://Assets/render/symbols/batu.png", "Batu")
+	batu_data.amount_label.text = "0"
+	storage_grid.add_child(batu_data.card)
+
+	# Slot 4: Jati
+	var jati_data = make_card.call("res://Assets/render/symbols/jati.png", "Jati")
+	jati_data.amount_label.text = "0"
+	storage_grid.add_child(jati_data.card)
 	
 	main_vbox.add_child(HSeparator.new())
 	
@@ -587,22 +657,143 @@ func _setup_info_panel() -> void:
 	tax_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	main_vbox.add_child(tax_desc_label)
 
+func _setup_pause_menu() -> void:
+	pause_panel = PanelContainer.new()
+	pause_panel.visible = false
+	pause_panel.z_index = 300
+	pause_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	pause_panel.anchor_left = 0.5
+	pause_panel.anchor_top = 0.5
+	pause_panel.anchor_right = 0.5
+	pause_panel.anchor_bottom = 0.5
+	pause_panel.offset_left = -190
+	pause_panel.offset_top = -140
+	pause_panel.offset_right = 190
+	pause_panel.offset_bottom = 140
+	pause_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	pause_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.09, 0.14, 0.96)
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.border_color = Color(0.3, 0.8, 1.0, 0.9)
+	style.corner_radius_top_left = 10
+	style.corner_radius_top_right = 10
+	style.corner_radius_bottom_left = 10
+	style.corner_radius_bottom_right = 10
+	style.content_margin_left = 16
+	style.content_margin_top = 16
+	style.content_margin_right = 16
+	style.content_margin_bottom = 16
+	pause_panel.add_theme_stylebox_override("panel", style)
+	add_child(pause_panel)
+	
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	pause_panel.add_child(vbox)
+	
+	var title = Label.new()
+	title.text = "PERMAINAN DIHENTIKAN"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var t_set = LabelSettings.new()
+	t_set.font = font
+	t_set.font_size = 15
+	t_set.font_color = Color(0.3, 0.9, 1.0)
+	title.label_settings = t_set
+	vbox.add_child(title)
+	
+	vbox.add_child(HSeparator.new())
+	
+	var sub = Label.new()
+	sub.text = "Pengaturan Kontrol Kamera:"
+	var s_set = LabelSettings.new()
+	s_set.font = font
+	s_set.font_size = 11
+	s_set.font_color = Color(0.85, 0.85, 0.85)
+	sub.label_settings = s_set
+	vbox.add_child(sub)
+	
+	edge_pan_checkbox = CheckBox.new()
+	edge_pan_checkbox.text = " Move by Edge Cursor"
+	edge_pan_checkbox.add_theme_font_override("font", font)
+	edge_pan_checkbox.button_pressed = true
+	edge_pan_checkbox.toggled.connect(func(toggled_on: bool):
+		var cam = get_viewport().get_camera_2d()
+		if cam and "enable_edge_pan" in cam:
+			cam.enable_edge_pan = toggled_on
+	)
+	vbox.add_child(edge_pan_checkbox)
+	
+	rmb_pan_checkbox = CheckBox.new()
+	rmb_pan_checkbox.text = " Move by Hold Right Click"
+	rmb_pan_checkbox.add_theme_font_override("font", font)
+	rmb_pan_checkbox.button_pressed = true
+	rmb_pan_checkbox.toggled.connect(func(toggled_on: bool):
+		var cam = get_viewport().get_camera_2d()
+		if cam and "enable_right_click_pan" in cam:
+			cam.enable_right_click_pan = toggled_on
+	)
+	vbox.add_child(rmb_pan_checkbox)
+	
+	vbox.add_child(HSeparator.new())
+	
+	var resume_btn = Button.new()
+	resume_btn.text = "LANJUTKAN"
+	resume_btn.add_theme_font_override("font", font)
+	resume_btn.custom_minimum_size = Vector2(0, 36)
+	resume_btn.pressed.connect(func():
+		toggle_pause(false)
+	)
+	vbox.add_child(resume_btn)
+
+func toggle_pause(force_state: int = -1) -> void:
+	var new_state: bool
+	if force_state == 1:
+		new_state = true
+	elif force_state == 0:
+		new_state = false
+	else:
+		new_state = !get_tree().paused
+		
+	get_tree().paused = new_state
+	if pause_panel != null:
+		pause_panel.visible = new_state
+	
+	if new_state:
+		var cam = get_viewport().get_camera_2d()
+		if cam:
+			if "enable_edge_pan" in cam and edge_pan_checkbox != null:
+				edge_pan_checkbox.button_pressed = cam.enable_edge_pan
+			if "enable_right_click_pan" in cam and rmb_pan_checkbox != null:
+				rmb_pan_checkbox.button_pressed = cam.enable_right_click_pan
+
 func _adjust_tax(delta_rate: int) -> void:
 	var main = get_parent()
 	if main and main.has_method("set_tax_rate"):
 		main.set_tax_rate(main.tax_rate + delta_rate)
 
 func toggle_info_panel(force_show: bool = false) -> void:
+	var should_show: bool
 	if force_show:
-		info_panel.visible = true
+		should_show = true
 	else:
-		info_panel.visible = not info_panel.visible
-	if info_panel.visible:
+		should_show = not info_panel.visible
+
+	if should_show:
+		if build_panel != null:
+			build_panel.visible = false
+		info_panel.visible = true
 		_refresh_info_panel_ui()
+	else:
+		info_panel.visible = false
 
 func _setup_hud_buttons() -> void:
 	var info_btn = Button.new()
-	info_btn.text = "🏛️ PRAJA"
+	info_btn.text = "PRAJA"
 	info_btn.add_theme_font_override("font", font)
 	info_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	
@@ -645,7 +836,7 @@ func _setup_hud_buttons() -> void:
 	add_child(info_btn)
 
 	var hud_btn = Button.new()
-	hud_btn.text = "🔨 PEMBANGUNAN"
+	hud_btn.text = "PEMBANGUNAN"
 	hud_btn.add_theme_font_override("font", font)
 	hud_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	
@@ -748,7 +939,7 @@ func _setup_build_panel() -> void:
 	if not pm: return
 	
 	var demolish_btn = Button.new()
-	demolish_btn.text = "🔨 MODE BONGKAR"
+	demolish_btn.text = "MODE BONGKAR"
 	demolish_btn.add_theme_font_override("font", font)
 	demolish_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	
@@ -886,7 +1077,7 @@ func _create_building_card(b: BuildingData, pm: Node) -> Button:
 	else:
 		var fallback_lbl = Label.new()
 		fallback_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		fallback_lbl.text = "🏛️" if b.building_type == BuildingData.BuildingType.GOVERNMENT else ("🏠" if b.building_type == BuildingData.BuildingType.RESIDENT else "🏗️")
+		fallback_lbl.text = ""
 		if not is_unlocked:
 			fallback_lbl.modulate = Color(0.4, 0.4, 0.4, 0.6)
 		hbox.add_child(fallback_lbl)
@@ -906,17 +1097,17 @@ func _create_building_card(b: BuildingData, pm: Node) -> Button:
 	name_lbl.label_settings = n_set
 	info_vbox.add_child(name_lbl)
 	
-	var cost_str = "💰 %d Emas" % b.cost
+	var cost_str = "%d Emas" % b.cost
 	if b.id == "house":
-		cost_str += " | 🪵 10 Bambu"
+		cost_str += " | 10 Bambu"
 	
 	if not is_unlocked:
 		if b.requires_townhall:
-			cost_str = "🔒 Membutuhkan Balai Kota"
+			cost_str = "Membutuhkan Balai Kota"
 		elif b.required_population > 0:
-			cost_str = "🔒 Terbuka pada %d Penduduk" % b.required_population
+			cost_str = "Terbuka pada %d Penduduk" % b.required_population
 		else:
-			cost_str = "🔒 Terkunci"
+			cost_str = "Terkunci"
 			
 	var cost_lbl = Label.new()
 	cost_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -946,6 +1137,8 @@ func toggle_build_menu(force_state: int = -1) -> void:
 		should_open = not is_open
 
 	if should_open:
+		if info_panel != null:
+			info_panel.visible = false
 		_setup_build_panel()
 		build_panel.visible = true
 	else:
@@ -958,7 +1151,10 @@ func toggle_build_menu(force_state: int = -1) -> void:
 				pm.exit_demolish_mode()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("info_btn"):
+	if event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE):
+		toggle_pause()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("info_btn"):
 		toggle_info_panel()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("build_btn"):
@@ -988,50 +1184,31 @@ func _refresh_info_panel_ui() -> void:
 	var act_houses = main.active_houses_count if "active_houses_count" in main else 0
 	var ab_houses = main.abandoned_houses_count if "abandoned_houses_count" in main else 0
 
-	var pending_food: int = 0
-	var pending_log: int = 0
-	var pm = main.get_node_or_null("PlacementManager")
-	if pm and pm.has_node("BuildingRegistry"):
-		var reg = pm.get_node("BuildingRegistry")
-		var res_buildings = reg.get_buildings_with_type(BuildingData.BuildingType.RESOURCE)
-		for b in res_buildings:
-			if is_instance_valid(b):
-				if "resource_type" in b and "produced_resource" in b:
-					if b.resource_type == "food":
-						pending_food += b.produced_resource
-					elif b.resource_type == "log":
-						pending_log += b.produced_resource
-
 	var gross_tax = main.gross_tax_monthly if "gross_tax_monthly" in main else (_curr_income)
 	var total_maint = main.total_maintenance_monthly if "total_maintenance_monthly" in main else 0
 
 	var sign_str = ("+" if _curr_income >= 0 else "") + str(_curr_income)
 	if info_gold_label:
-		info_gold_label.text = "💰 Perbendaharaan: %d Emas" % _curr_gold
+		info_gold_label.text = "Perbendaharaan: %d Emas" % _curr_gold
 	if info_income_label:
 		var maint_str = ""
 		if total_maint > 0:
 			maint_str = " (Upeti: +%d, Pemeliharaan: -%d)" % [gross_tax, total_maint]
-		info_income_label.text = "📈 Pendapatan Bersih: %s Emas / bln%s" % [sign_str, maint_str]
+		info_income_label.text = "Pendapatan Bersih: %s Emas / bln%s" % [sign_str, maint_str]
 	if info_pop_label:
-		info_pop_label.text = "👥 Total Warga: %d Jiwa" % _curr_pop
+		info_pop_label.text = "Total Warga: %d Jiwa" % _curr_pop
 
 	if info_happiness_label:
 		var hap_pct = int(round(_curr_happiness * 100.0))
-		info_happiness_label.text = "😊 Kebahagiaan: %d%%" % hap_pct
+		info_happiness_label.text = "Kebahagiaan: %d%%" % hap_pct
 
 	if info_housing_label:
-		info_housing_label.text = "🏠 Wisma: %d Aktif / %d Ditinggalkan" % [act_houses, ab_houses]
+		info_housing_label.text = "Wisma: %d Aktif / %d Ditinggalkan" % [act_houses, ab_houses]
 
 	if info_storage_food_label:
-		info_storage_food_label.text = "🌾 Hasil Panen (Talas): %d unit  (Belum Diambil: %d)" % [_curr_food, pending_food]
+		info_storage_food_label.text = "%d unit" % _curr_food
 	if info_storage_log_label:
-		info_storage_log_label.text = "🪵 Hasil Hutan (Bambu): %d unit  (Belum Diambil: %d)" % [_curr_log, pending_log]
-	if info_storage_gold_label:
-		if total_maint > 0:
-			info_storage_gold_label.text = "💰 Perbendaharaan Emas: %d Emas  (Biaya Pemeliharaan: -%d/bln)" % [_curr_gold, total_maint]
-		else:
-			info_storage_gold_label.text = "💰 Perbendaharaan Emas: %d Emas" % _curr_gold
+		info_storage_log_label.text = "%d unit" % _curr_log
 
 	if tax_rate_label:
 		var tax_title = "Wajar"

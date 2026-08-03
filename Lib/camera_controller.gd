@@ -5,10 +5,18 @@
 #   - Scroll wheel zooms in / out (clamped between MIN_ZOOM and MAX_ZOOM)
 #   - Moving the cursor within EDGE_MARGIN pixels of any viewport edge
 #     pans the camera in that direction (speed scales with proximity)
-#   - All tunable values are exposed as @export so you can tweak them
-#     directly in the Inspector without touching code.
+#   - Holding Right Mouse Button (RMB) drags/pans the camera view.
+#   - Control toggles for edge pan & RMB drag pan.
 
 extends Camera2D
+
+# ─── Control Toggles ──────────────────────────────────────────────────────────
+
+## Enable or disable edge cursor panning.
+@export var enable_edge_pan: bool = true
+
+## Enable or disable holding right click to drag pan camera.
+@export var enable_right_click_pan: bool = true
 
 # ─── Zoom ─────────────────────────────────────────────────────────────────────
 
@@ -35,22 +43,31 @@ extends Camera2D
 # ─── Internal ─────────────────────────────────────────────────────────────────
 
 var _target_zoom: float = 1.0
+var _is_dragging_rmb: bool = false
 
 # ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_target_zoom = zoom.x          # start at whatever zoom is set in the scene
 
 
 func _process(delta: float) -> void:
-	_handle_edge_pan(delta)
+	if not get_tree().paused:
+		_handle_edge_pan(delta)
 	_smooth_zoom(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
-		if mb.pressed:
+		if mb.button_index == MOUSE_BUTTON_RIGHT:
+			if mb.pressed:
+				if get_viewport().gui_get_hovered_control() == null:
+					_is_dragging_rmb = true
+			else:
+				_is_dragging_rmb = false
+		elif mb.pressed:
 			if mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 				if get_viewport().gui_get_hovered_control() != null:
 					return
@@ -61,9 +78,18 @@ func _unhandled_input(event: InputEvent) -> void:
 					_target_zoom = clamp(_target_zoom - zoom_step, min_zoom, max_zoom)
 					get_viewport().set_input_as_handled()
 
+	elif event is InputEventMouseMotion and _is_dragging_rmb:
+		if enable_right_click_pan:
+			var mm := event as InputEventMouseMotion
+			position -= mm.relative / zoom.x
+			get_viewport().set_input_as_handled()
+
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 func _handle_edge_pan(delta: float) -> void:
+	if not enable_edge_pan or _is_dragging_rmb:
+		return
+
 	var vp_size: Vector2 = get_viewport_rect().size
 	var mouse_pos: Vector2 = get_viewport().get_mouse_position()
 
@@ -94,3 +120,4 @@ func _smooth_zoom(delta: float) -> void:
 	if not is_equal_approx(current_zoom, _target_zoom):
 		var new_zoom: float = lerp(current_zoom, _target_zoom, zoom_smooth * delta)
 		zoom = Vector2(new_zoom, new_zoom)
+

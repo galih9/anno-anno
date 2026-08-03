@@ -231,3 +231,9 @@ func _get_main_node() -> Node:
 		return null
 	return tree.root.find_child("Main", true, false)
 
+func get_current_warning() -> String:
+	if status == Status.DISCONNECTED:
+		return "disconnect"
+	return ""
+
+
