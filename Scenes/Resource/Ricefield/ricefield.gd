@@ -309,3 +309,12 @@ func _get_adjacent_field_nodes() -> Array[FieldTile]:
 					result.append(field)
 
 	return result
+
+func get_current_warning() -> String:
+	if status == Status.DISCONNECTED:
+		return "disconnect"
+	elif not is_user_active or status == Status.INACTIVE:
+		return "sleep"
+	elif storage >= max_storage or status == Status.HALTED:
+		return "storage"
+	return ""

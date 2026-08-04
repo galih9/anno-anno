@@ -50,7 +50,7 @@ func _ready() -> void:
 	add_child(timer)
 	timer.timeout.connect(_on_resource_tick)
 
-	var ui = load("res://Lib/ui_manager.gd").new()
+	var ui = load("res://Lib/ui/ui_manager.gd").new()
 	ui.name = "UIManager"
 	add_child(ui)
 
@@ -200,4 +200,5 @@ func _check_progression_unlocks(curr_pop: int, pm: Node) -> void:
 					desc = "Mencapai pencapaian %d Penduduk!" % b_data.required_population
 				elif b_data.requires_townhall:
 					desc = "Terbuka setelah mendirikan Balai Kota!"
-				ui_manager.show_toast("🎉 TERBUKA: %s" % b_data.display_name, desc)
+				ui_manager.show_toast("TERBUKA: %s" % b_data.display_name, desc)
+

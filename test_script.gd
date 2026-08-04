@@ -3,11 +3,11 @@ extends SceneTree
 func _init():
 	print("Testing script loading...")
 	var scripts = [
-		"res://Lib/building_registry.gd",
-		"res://Lib/building_data.gd",
-		"res://Lib/ui_manager.gd",
-		"res://Lib/main.gd",
-		"res://Lib/connection_checker.gd",
+		"res://Lib/core/building_registry.gd",
+		"res://Lib/core/building_data.gd",
+		"res://Lib/ui/ui_manager.gd",
+		"res://Lib/core/main.gd",
+		"res://Lib/placement/connection_checker.gd",
 		"res://Scenes/Residential/House/house.gd"
 	]
 	for path in scripts:
@@ -17,4 +17,3 @@ func _init():
 		else:
 			print("OK: " + path)
 	quit()
-

@@ -198,7 +198,7 @@ func get_info_text() -> String:
 
 	var food_str = "%d Talas/bln (%s)" % [
 		get_monthly_food_cost(),
-		"Disuplai" if is_fed else "⚠️ KELAPARAN (%d bln)" % unfed_months
+		"Disuplai" if is_fed else "KELAPARAN (%d bln)" % unfed_months
 	]
 
 	var boost_str = " +50% Bonus Upeti" if has_townhall_bonus else " Tidak ada"
@@ -224,7 +224,7 @@ func on_food_deprived() -> void:
 	food_happiness_penalty = min(1.0, float(unfed_months) * 0.25)
 	_recalculate_happiness()
 	if unfed_months >= 1:
-		_show_floating_text("Tidak ada Talas! Kelaparan... 🌾❌", Color(1.0, 0.3, 0.3))
+		_show_floating_text("Tidak ada Talas! Kelaparan...", Color(1.0, 0.3, 0.3))
 
 func _try_start_upgrade() -> void:
 	var req = get_upgrade_requirements(Level.RAKYAT_BEBAS)
@@ -234,13 +234,13 @@ func _try_start_upgrade() -> void:
 			main_node.log -= UPGRADE_LOG_COST
 			is_upgrading = true
 			upgrade_timer = 0.0
-			_show_floating_text("Meningkatkan Wisma (5 Bambu)... 🛠️", Color(0.9, 0.7, 0.2))
+			_show_floating_text("Meningkatkan Wisma (5 Bambu)...", Color(0.9, 0.7, 0.2))
 
 func _finish_upgrade() -> void:
 	is_upgrading = false
 	level = Level.RAKYAT_BEBAS
 	var tier_name = get_tier_name(level)
-	_show_floating_text("Ditingkatkan ke %s! 🏠✨" % tier_name, Color(0.3, 0.9, 1.0))
+	_show_floating_text("Ditingkatkan ke %s!" % tier_name, Color(0.3, 0.9, 1.0))
 
 	if building_sprite:
 		building_sprite.modulate = Color(1.15, 1.15, 1.3)
@@ -251,7 +251,8 @@ func _finish_upgrade() -> void:
 	if tree != null and tree.root != null:
 		var ui_manager = tree.root.find_child("UIManager", true, false)
 		if ui_manager and ui_manager.has_method("show_toast"):
-			ui_manager.show_toast("🏠 Wisma Ditingkatkan!", "Ditingkatkan ke Tingkat 2 (%s)! Kapasitas warga bertambah hingga 10-20 jiwa." % tier_name)
+			ui_manager.show_toast("Wisma Ditingkatkan!", "Ditingkatkan ke Tingkat 2 (%s)! Kapasitas warga bertambah hingga 10-20 jiwa." % tier_name)
+
 
 func _show_floating_text(text: String, text_color: Color = Color(0.2, 1.0, 0.2)) -> void:
 	var label = Label.new()
@@ -306,3 +307,12 @@ func apply_townhall_bonus() -> void:
 
 func _recalculate_happiness() -> void:
 	happiness = clamp(_base_happiness + _bench_bonus + tax_modifier - food_happiness_penalty, 0.0, 1.0)
+
+func get_current_warning() -> String:
+	if status == Status.DISCONNECTED:
+		return "disconnect"
+	elif not is_fed:
+		return "talas"
+	elif status == Status.ABANDONED:
+		return "populasi"
+	return ""

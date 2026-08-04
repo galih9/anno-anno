@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://dm5lahcxbpqr3"]
 
-[ext_resource type="Script" path="res://Lib/field_tile.gd" id="1_script"]
+[ext_resource type="Script" path="res://Lib/placement/field_tile.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://bs76ny3apmub6" path="res://Assets/field.png" id="2_field"]
 
 [node name="RicefieldField" type="Node2D"]

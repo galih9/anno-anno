@@ -30,7 +30,22 @@ var _occupied: Dictionary = {}
 func register(cells: Array[Vector2i], building: Node2D) -> void:
 	for cell in cells:
 		_occupied[cell] = building
+	_ensure_warning_overlay(building)
 	building_placed.emit(building, cells)
+
+func _ensure_warning_overlay(building: Node2D) -> void:
+	if building == null or not is_instance_valid(building):
+		return
+	if building.has_node("BuildingWarningOverlay"):
+		return
+	var data: BuildingData = _get_building_data(building)
+	if data != null:
+		if data.id.ends_with("_field") or data.id == "ricefield_field" or data.is_connector or data.building_type == BuildingData.BuildingType.CONNECTOR:
+			return
+	var overlay = BuildingWarningOverlay.new()
+	overlay.name = "BuildingWarningOverlay"
+	building.add_child(overlay)
+
 
 
 ## Remove all cells owned by [param building] and call queue_free() on it.
